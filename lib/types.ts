@@ -122,3 +122,31 @@ export interface Conversation {
   lastMessage: DirectMessage;
   unreadCount: number;
 }
+
+export interface Story {
+  id: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  imageUrl: string;
+  title?: string;
+  category?: string;
+  caption?: string;
+  pieceId?: string;
+  likesCount?: number;
+  isLiked?: boolean;
+  viewsCount?: number;
+  createdAt: string; // ISO string
+  expiresAt: string; // ISO string (24 hours from creation)
+}
+
+export interface UserStoryGroup {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  hasUnseen?: boolean;
+  stories: Story[];
+}
+

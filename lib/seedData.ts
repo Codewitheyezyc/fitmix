@@ -1,4 +1,4 @@
-import { Piece, Mix, UserProfile, NotificationItem } from './types';
+import { Piece, Mix, UserProfile, NotificationItem, Story } from './types';
 
 export const CURRENT_USER: UserProfile = {
   id: 'usr_me',
@@ -631,5 +631,93 @@ export const FASHION_TECHNIQUES = [
     id: 'tech_6',
     name: 'Upcycled DIY Statement',
     description: 'Centering a look around a 1-of-1 reconstructed handmade garment while keeping secondary pieces minimalist.'
+  }
+];
+
+export const INITIAL_STORIES: Story[] = [
+  {
+    id: 'story_1',
+    userId: 'usr_me',
+    username: 'alex_creator',
+    displayName: 'Alex Rivers',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1544923246-77307dd654cb?w=800&auto=format&fit=crop&q=80',
+    title: 'Archival Wool Trench',
+    category: 'Outerwear',
+    caption: 'Just added this heavy wool archival trench to my closet. Tag me if you remix it!',
+    pieceId: 'pc_2',
+    likesCount: 19,
+    isLiked: false,
+    viewsCount: 68,
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 22 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'story_2',
+    userId: 'usr_1',
+    username: 'elena_v',
+    displayName: 'Elena Vance',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=800&auto=format&fit=crop&q=80',
+    title: 'Upcycled Bottle-Cap Denim',
+    category: 'Upcycled DIY',
+    caption: '1-of-1 handmade piece made with recycled caps. Check how it looks on the flat-lay!',
+    pieceId: 'pc_3',
+    likesCount: 34,
+    isLiked: false,
+    viewsCount: 142,
+    createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'story_3',
+    userId: 'usr_1',
+    username: 'elena_v',
+    displayName: 'Elena Vance',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80',
+    title: 'Leather Layering In Studio',
+    category: 'Outerwear',
+    caption: 'Styling high-contrast outerwear with cropped proportions.',
+    pieceId: 'pc_2',
+    likesCount: 28,
+    isLiked: true,
+    viewsCount: 110,
+    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 21 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'story_4',
+    userId: 'usr_2',
+    username: 'kai_upcycle',
+    displayName: 'Kai Chen',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800&auto=format&fit=crop&q=80',
+    title: 'Adidas Samba Classic Restock',
+    category: 'Footwear',
+    caption: 'Streetwear staple restocked in the community studio.',
+    pieceId: 'pc_1',
+    likesCount: 52,
+    isLiked: false,
+    viewsCount: 230,
+    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'story_5',
+    userId: 'usr_3',
+    username: 'sophie_thrift',
+    displayName: 'Sophie Laurent',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=800&auto=format&fit=crop&q=80',
+    title: 'Electric Mohair Lime Knit',
+    category: 'Tops',
+    caption: 'Electric lime texture pops against any dark minimal bottom.',
+    pieceId: 'pc_8',
+    likesCount: 41,
+    isLiked: false,
+    viewsCount: 185,
+    createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000).toISOString()
   }
 ];

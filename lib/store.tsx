@@ -10,14 +10,17 @@ import {
   CategoryType,
   MixPieceTransform,
   CanvasBackground,
-  Comment
+  Comment,
+  Story,
+  UserStoryGroup
 } from './types';
 import { 
   CURRENT_USER, 
   INITIAL_USERS, 
   INITIAL_PIECES, 
   INITIAL_MIXES, 
-  INITIAL_NOTIFICATIONS 
+  INITIAL_NOTIFICATIONS,
+  INITIAL_STORIES
 } from './seedData';
 import { supabase } from './supabase';
 
@@ -95,6 +98,13 @@ interface StoreContextType {
   addComment: (mixId: string, content: string) => Comment;
   getCommentsByMix: (mixId: string) => Comment[];
   
+  // Story Actions
+  stories: Story[];
+  addStory: (storyData: { imageUrl: string; caption?: string; pieceId?: string; title?: string; category?: string }) => Story;
+  deleteStory: (storyId: string) => void;
+  toggleLikeStory: (storyId: string) => void;
+  getUserStoryGroups: () => UserStoryGroup[];
+  
   // Social Actions
   toggleFollowUser: (userId: string) => void;
   sendMessage: (receiverId: string, content: string, attachedMixId?: string, attachedPieceId?: string) => DirectMessage;
@@ -112,6 +122,7 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: 'fitmix_notifications_v3',
   DMS: 'fitmix_dms_v3',
   COMMENTS: 'fitmix_comments_v3',
+  STORIES: 'fitmix_stories_v3',
   THEME: 'fitmix_theme_v3',
   AUTH: 'fitmix_auth_v3',
   USER: 'fitmix_current_user_v3'
@@ -127,6 +138,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
   const [comments, setComments] = useState<Comment[]>(INITIAL_COMMENTS);
+  const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   // Apply theme to document
@@ -475,6 +487,81 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     return comments.filter(c => c.mixId === mixId);
   };
 
+  // Story Actions
+  const addStory = (storyData: { imageUrl: string; caption?: string; pieceId?: string; title?: string; category?: string }): Story => {
+    const newStory: Story = {
+      id: `story_${Date.now()}`,
+      userId: currentUser.id,
+      username: currentUser.username,
+      displayName: currentUser.displayName,
+      avatarUrl: currentUser.avatarUrl,
+      imageUrl: storyData.imageUrl,
+      title: storyData.title || 'Styling Story',
+      category: storyData.category || 'Look',
+      caption: storyData.caption || '',
+      pieceId: storyData.pieceId,
+      likesCount: 0,
+      isLiked: false,
+      viewsCount: 1,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
+    const updated = [newStory, ...stories];
+    setStories(updated);
+    persist(STORAGE_KEYS.STORIES, updated);
+    return newStory;
+  };
+
+  const deleteStory = (storyId: string) => {
+    const updated = stories.filter(s => s.id !== storyId);
+    setStories(updated);
+    persist(STORAGE_KEYS.STORIES, updated);
+  };
+
+  const toggleLikeStory = (storyId: string) => {
+    const updated = stories.map(s => {
+      if (s.id === storyId) {
+        const isLiked = !s.isLiked;
+        return {
+          ...s,
+          isLiked,
+          likesCount: (s.likesCount || 0) + (isLiked ? 1 : -1)
+        };
+      }
+      return s;
+    });
+    setStories(updated);
+    persist(STORAGE_KEYS.STORIES, updated);
+  };
+
+  const getUserStoryGroups = (): UserStoryGroup[] => {
+    // Auto-discard stories older than 24 hours
+    const active = stories.filter(s => new Date(s.expiresAt).getTime() > Date.now());
+    const groupsMap = new Map<string, UserStoryGroup>();
+
+    active.forEach(story => {
+      if (!groupsMap.has(story.userId)) {
+        groupsMap.set(story.userId, {
+          userId: story.userId,
+          username: story.username,
+          displayName: story.displayName,
+          avatarUrl: story.avatarUrl,
+          hasUnseen: true,
+          stories: []
+        });
+      }
+      groupsMap.get(story.userId)!.stories.push(story);
+    });
+
+    const result: UserStoryGroup[] = [];
+    if (groupsMap.has(currentUser.id)) {
+      result.push(groupsMap.get(currentUser.id)!);
+      groupsMap.delete(currentUser.id);
+    }
+    groupsMap.forEach(group => result.push(group));
+    return result;
+  };
+
   const markNotificationsAsRead = () => {
     const updatedNotifs = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updatedNotifs);
@@ -497,6 +584,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       notifications,
       directMessages,
       comments,
+      stories,
       theme,
       toggleTheme,
       setThemeMode,
@@ -512,6 +600,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       toggleSaveMix,
       addComment,
       getCommentsByMix,
+      addStory,
+      deleteStory,
+      toggleLikeStory,
+      getUserStoryGroups,
       toggleFollowUser,
       sendMessage,
       getMessagesBetween,
