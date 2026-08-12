@@ -13,19 +13,21 @@ export interface CloudSyncData {
   stories: Story[];
   notifications: NotificationItem[];
   follows: { follower_id: string; following_id: string }[];
+  users: UserProfile[];
 }
 
 /**
- * Fetch all cloud pieces, mixes, stories, and follows from Supabase
+ * Fetch all cloud pieces, mixes, stories, follows, and users from Supabase
  */
 export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
   try {
-    const [piecesRes, mixesRes, storiesRes, notifsRes, followsRes] = await Promise.all([
+    const [piecesRes, mixesRes, storiesRes, notifsRes, followsRes, profilesRes] = await Promise.all([
       supabase.from('pieces').select('*').order('created_at', { ascending: false }),
       supabase.from('mixes').select('*').order('created_at', { ascending: false }),
       supabase.from('stories').select('*').order('created_at', { ascending: false }),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('follows').select('*')
+      supabase.from('follows').select('*'),
+      supabase.from('profiles').select('*').order('created_at', { ascending: false })
     ]);
 
     const result: Partial<CloudSyncData> = {};
@@ -92,6 +94,23 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
 
     if (followsRes.data) {
       result.follows = followsRes.data;
+    }
+
+    if (profilesRes.data && profilesRes.data.length > 0) {
+      result.users = profilesRes.data.map(p => ({
+        id: p.id,
+        username: p.username,
+        displayName: p.display_name,
+        avatarUrl: p.avatar_url || '',
+        bio: p.bio || 'Fashion lover & outfit mixer.',
+        location: p.location || '',
+        styleInterests: p.style_interests || ['Streetwear', 'Vintage'],
+        totalRemixesReceived: 0,
+        followersCount: 0,
+        followingCount: 0,
+        hasCompletedOnboarding: p.has_completed_onboarding ?? true,
+        createdAt: p.created_at || new Date().toISOString()
+      }));
     }
 
     return result;

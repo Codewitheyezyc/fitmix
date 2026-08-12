@@ -227,9 +227,15 @@ export default function Navbar() {
                 <div className="relative ml-1">
                   <button
                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-[#E2FF66] block hover:ring-2 hover:ring-[#E2FF66] transition-all"
+                    className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-[#E2FF66] bg-[#E2FF66]/10 flex items-center justify-center hover:ring-2 hover:ring-[#E2FF66] transition-all"
                   >
-                    <img src={currentUser.avatarUrl} alt={currentUser.displayName} className="w-full h-full object-cover" />
+                    {currentUser.avatarUrl ? (
+                      <img src={currentUser.avatarUrl} alt={currentUser.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-[#7B9600] dark:text-[#E2FF66]">
+                        {(currentUser.displayName || currentUser.username || 'S')[0]?.toUpperCase()}
+                      </span>
+                    )}
                   </button>
 
                   {/* Profile Dropdown Menu */}

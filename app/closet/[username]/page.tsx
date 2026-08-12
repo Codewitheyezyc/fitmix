@@ -87,8 +87,14 @@ export default function ClosetProfilePage() {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
           
           {/* Avatar */}
-          <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-[#E2FF66] shadow-[0_0_25px_rgba(226,255,102,0.3)] flex-shrink-0">
-            <img src={profileUser.avatarUrl} alt={profileUser.displayName} className="w-full h-full object-cover" />
+          <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-[#E2FF66] shadow-[0_0_25px_rgba(226,255,102,0.3)] flex-shrink-0 bg-[#E2FF66]/10 flex items-center justify-center">
+            {profileUser.avatarUrl ? (
+              <img src={profileUser.avatarUrl} alt={profileUser.displayName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl font-extrabold text-[#7B9600] dark:text-[#E2FF66]">
+                {(profileUser.displayName || profileUser.username || 'S')[0]?.toUpperCase()}
+              </span>
+            )}
           </div>
 
           {/* User Info */}

@@ -194,25 +194,62 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           setIsAuthenticated(true);
           persist(STORAGE_KEYS.AUTH, true);
           
-          // Sync profile if available
-          const meta = session.user.user_metadata;
-          if (meta?.username || session.user.email) {
-            const syncedUser: UserProfile = {
+          try {
+            // Fetch authoritative profile from Supabase profiles table
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .or(`id.eq.${session.user.id},username.eq.${session.user.user_metadata?.username || ''}`)
+              .maybeSingle();
+
+            const meta = session.user.user_metadata;
+            const userObj: UserProfile = profile ? {
+              id: profile.id || session.user.id,
+              username: profile.username || meta?.username || (session.user.email ? session.user.email.split('@')[0] : 'stylist'),
+              displayName: profile.display_name || meta?.full_name || meta?.display_name || 'Stylist',
+              avatarUrl: profile.avatar_url || meta?.avatar_url || '',
+              bio: profile.bio || 'Fashion lover & outfit mixer.',
+              location: profile.location || '',
+              styleInterests: (profile.style_interests && profile.style_interests.length > 0) ? profile.style_interests : (meta?.style_interests || ['Streetwear', 'Vintage']),
+              totalRemixesReceived: 0,
+              followersCount: 0,
+              followingCount: 0,
+              hasCompletedOnboarding: profile.has_completed_onboarding ?? true,
+              createdAt: profile.created_at || session.user.created_at || new Date().toISOString()
+            } : {
               id: session.user.id,
               username: meta?.username || (session.user.email ? session.user.email.split('@')[0] : 'stylist'),
               displayName: meta?.full_name || meta?.display_name || 'Stylist',
-              avatarUrl: meta?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              avatarUrl: meta?.avatar_url || '',
               bio: 'Fashion lover & outfit mixer.',
+              location: '',
               styleInterests: meta?.style_interests || ['Streetwear', 'Vintage'],
               totalRemixesReceived: 0,
               followersCount: 0,
               followingCount: 0,
+              hasCompletedOnboarding: true,
               createdAt: session.user.created_at || new Date().toISOString()
             };
-            setCurrentUser(syncedUser);
-            persist(STORAGE_KEYS.USER, syncedUser);
-            // Sync cloud data on login
+
+            // If no profile exists yet in the database, insert it
+            if (!profile) {
+              await supabase.from('profiles').upsert({
+                id: userObj.id,
+                username: userObj.username,
+                display_name: userObj.displayName,
+                avatar_url: userObj.avatarUrl,
+                bio: userObj.bio,
+                style_interests: userObj.styleInterests,
+                has_completed_onboarding: true,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'username' });
+            }
+
+            setCurrentUser(userObj);
+            persist(STORAGE_KEYS.USER, userObj);
             syncWithCloud();
+          } catch (err) {
+            console.warn('Profile auth sync notice:', err);
           }
         }
       });
@@ -246,7 +283,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           display_name: updated.displayName,
           avatar_url: updated.avatarUrl,
           bio: updated.bio,
+          location: updated.location,
           style_interests: updated.styleInterests,
+          has_completed_onboarding: updated.hasCompletedOnboarding ?? true,
           updated_at: new Date().toISOString()
         }, { onConflict: 'username' });
       } catch (_) {}
@@ -313,6 +352,35 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           setUsers(prev => prev.map(u => ({ ...u, isFollowing: followingIds.has(u.id) })));
         }
       }
+
+      if (cloud.users && cloud.users.length > 0) {
+        setUsers(cloud.users);
+        persist(STORAGE_KEYS.USERS, cloud.users);
+
+        // Sync currentUser with real authoritative cloud profile (e.g. avatar uploaded on other device)
+        const myCloudProfile = cloud.users.find(u => 
+          (activeUser.id && u.id === activeUser.id) || 
+          (activeUser.username && u.username.toLowerCase() === activeUser.username.toLowerCase())
+        );
+
+        if (myCloudProfile && activeUser.id !== 'guest') {
+          setCurrentUser(prev => {
+            const updated: UserProfile = {
+              ...prev,
+              id: myCloudProfile.id || prev.id,
+              username: myCloudProfile.username || prev.username,
+              displayName: myCloudProfile.displayName || prev.displayName,
+              avatarUrl: myCloudProfile.avatarUrl || prev.avatarUrl,
+              bio: myCloudProfile.bio || prev.bio,
+              location: myCloudProfile.location || prev.location,
+              styleInterests: (myCloudProfile.styleInterests && myCloudProfile.styleInterests.length > 0) ? myCloudProfile.styleInterests : prev.styleInterests,
+              hasCompletedOnboarding: myCloudProfile.hasCompletedOnboarding ?? prev.hasCompletedOnboarding ?? true
+            };
+            persist(STORAGE_KEYS.USER, updated);
+            return updated;
+          });
+        }
+      }
     } catch (err) {
       console.warn('Sync error notice:', err);
     }
@@ -366,6 +434,24 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       persist(STORAGE_KEYS.USER, updated);
       return updated;
     });
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fitmix_onboarding_done', 'true');
+    }
+
+    const doUpdateOnboarding = async () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.USER);
+        const userObj: UserProfile = raw ? JSON.parse(raw) : currentUser;
+        if (userObj.id && userObj.id !== 'guest') {
+          await supabase.from('profiles').update({
+            has_completed_onboarding: true,
+            updated_at: new Date().toISOString()
+          }).eq('id', userObj.id);
+        }
+      } catch (_) {}
+    };
+    doUpdateOnboarding();
   };
 
   const signup = (userData: { username: string; displayName: string; styleInterests: string[]; avatarUrl?: string }) => {
