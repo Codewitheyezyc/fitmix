@@ -25,6 +25,15 @@ import {
 } from './seedData';
 import { createMentionNotifications } from './mentionUtils';
 import { supabase } from './supabase';
+import { 
+  fetchCloudData, 
+  cloudAddPiece, 
+  cloudDeletePiece, 
+  cloudAddMix, 
+  cloudAddStory, 
+  cloudDeleteStory, 
+  cloudToggleFollow 
+} from './syncEngine';
 
 const INITIAL_COMMENTS: Comment[] = [
   {
@@ -191,6 +200,43 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const savedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
       if (savedComments) setComments(JSON.parse(savedComments));
 
+      // Asynchronously fetch latest cloud data from Supabase across all devices
+      fetchCloudData().then(cloud => {
+        if (cloud.pieces && cloud.pieces.length > 0) {
+          setPieces(prev => {
+            const cloudIds = new Set(cloud.pieces!.map(p => p.id));
+            const existingSeedOnly = prev.filter(p => !cloudIds.has(p.id));
+            const merged = [...cloud.pieces!, ...existingSeedOnly];
+            persist(STORAGE_KEYS.PIECES, merged);
+            return merged;
+          });
+        }
+        if (cloud.mixes && cloud.mixes.length > 0) {
+          setMixes(prev => {
+            const cloudIds = new Set(cloud.mixes!.map(m => m.id));
+            const existingSeedOnly = prev.filter(m => !cloudIds.has(m.id));
+            const merged = [...cloud.mixes!, ...existingSeedOnly];
+            persist(STORAGE_KEYS.MIXES, merged);
+            return merged;
+          });
+        }
+        if (cloud.stories && cloud.stories.length > 0) {
+          setStories(prev => {
+            const cloudIds = new Set(cloud.stories!.map(s => s.id));
+            const existingSeedOnly = prev.filter(s => !cloudIds.has(s.id));
+            const merged = [...cloud.stories!, ...existingSeedOnly];
+            persist(STORAGE_KEYS.STORIES, merged);
+            return merged;
+          });
+        }
+        if (cloud.follows && cloud.follows.length > 0) {
+          const followingIds = new Set(cloud.follows.filter(f => f.follower_id === currentUser.id).map(f => f.following_id));
+          if (followingIds.size > 0) {
+            setUsers(prev => prev.map(u => ({ ...u, isFollowing: followingIds.has(u.id) })));
+          }
+        }
+      }).catch(err => console.warn('Supabase cloud fetch note:', err));
+
       // Listen to live Supabase Auth
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
@@ -309,6 +355,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedPieces = [newPiece, ...pieces];
     setPieces(updatedPieces);
     persist(STORAGE_KEYS.PIECES, updatedPieces);
+    cloudAddPiece(newPiece);
 
     // Dispatch mention notifications if any @username in piece description
     const mentionNotifs = createMentionNotifications({
@@ -332,6 +379,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedPieces = pieces.filter(p => p.id !== pieceId);
     setPieces(updatedPieces);
     persist(STORAGE_KEYS.PIECES, updatedPieces);
+    cloudDeletePiece(pieceId);
   };
 
   const getPieceById = (id: string) => pieces.find(p => p.id === id);
@@ -389,16 +437,16 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           actorAvatar: currentUser.avatarUrl,
           type: 'remix',
           targetMixId: newMix.id,
+          mixTitle: newMix.title,
           targetPieceId: piece.id,
           pieceTitle: piece.title,
-          mixTitle: newMix.title,
           read: false,
           createdAt: new Date().toISOString()
         });
       }
     });
 
-    // Mention notifications in mix
+    // Also dispatch mention notifications if any @username in mix description or whyItWorks
     const mentionNotifs = createMentionNotifications({
       text: `${newMix.title} ${newMix.description || ''} ${newMix.whyItWorks || ''}`,
       sender: currentUser,
@@ -408,15 +456,16 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       targetTitle: newMix.title
     });
 
-    const updatedMixes = [newMix, ...mixes];
     const updatedAllNotifs = [...newNotifs, ...mentionNotifs, ...notifications];
+    setNotifications(updatedAllNotifs);
+    persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
 
+    const updatedMixes = [newMix, ...mixes];
     setPieces(updatedPieces);
     setMixes(updatedMixes);
-    setNotifications(updatedAllNotifs);
-
     persist(STORAGE_KEYS.PIECES, updatedPieces);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
+    cloudAddMix(newMix);
     persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
 
     return newMix;
@@ -454,9 +503,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleFollowUser = (userId: string) => {
+    let nextStatus = true;
     const updatedUsers = users.map(u => {
       if (u.id === userId) {
         const isFollowing = !u.isFollowing;
+        nextStatus = isFollowing;
         return {
           ...u,
           isFollowing,
@@ -467,6 +518,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     });
     setUsers(updatedUsers);
     persist(STORAGE_KEYS.USERS, updatedUsers);
+    cloudToggleFollow(currentUser.id, userId, nextStatus);
   };
 
   const sendMessage = (receiverId: string, content: string, attachedMixId?: string, attachedPieceId?: string): DirectMessage => {
@@ -595,6 +647,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updated = [newStory, ...stories];
     setStories(updated);
     persist(STORAGE_KEYS.STORIES, updated);
+    cloudAddStory(newStory);
 
     // Dispatch mention notifications in story caption
     const mentionNotifs = createMentionNotifications({
@@ -619,6 +672,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updated = stories.filter(s => s.id !== storyId);
     setStories(updated);
     persist(STORAGE_KEYS.STORIES, updated);
+    cloudDeleteStory(storyId);
   };
 
   const toggleLikeStory = (storyId: string) => {

@@ -30,7 +30,8 @@ import {
   Wand2,
   Tag,
   Flame,
-  ChevronRight
+  ChevronRight,
+  Repeat
 } from 'lucide-react';
 
 export default function RemixCanvasEditor() {
@@ -59,6 +60,7 @@ export default function RemixCanvasEditor() {
 
   // Modal States
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [swapTargetLayerIndex, setSwapTargetLayerIndex] = useState<number | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<'followed' | 'closet' | 'explore'>(
     isAuthenticated ? 'followed' : 'explore'
@@ -286,8 +288,25 @@ export default function RemixCanvasEditor() {
     setLayers(updatedLayers);
   };
 
-  // Add Piece to Canvas with intelligent starting coordinate
+  // Add or Swap Piece on Canvas
   const addPieceToCanvas = (piece: Piece) => {
+    // If in Swap Mode, replace target layer's garment while maintaining position and scale
+    if (swapTargetLayerIndex !== null && layers[swapTargetLayerIndex]) {
+      setLayers(prev => {
+        const copy = [...prev];
+        copy[swapTargetLayerIndex] = {
+          ...copy[swapTargetLayerIndex],
+          pieceId: piece.id,
+          pieceData: piece
+        };
+        return copy;
+      });
+      setSelectedLayerIndex(swapTargetLayerIndex);
+      setSwapTargetLayerIndex(null);
+      setIsPickerOpen(false);
+      return;
+    }
+
     const cat = piece.category;
     const count = layers.length + 1;
     const baseScale = count <= 2 ? 0.95 : count === 3 ? 0.85 : count === 4 ? 0.78 : 0.68;
@@ -659,6 +678,19 @@ export default function RemixCanvasEditor() {
                   {selectedLayer.pieceData?.title}
                 </span>
 
+                {/* Swap Piece Action */}
+                <button
+                  onClick={() => {
+                    setSwapTargetLayerIndex(selectedLayerIndex);
+                    setIsPickerOpen(true);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#E2FF66]/20 text-[#7B9600] dark:text-[#E2FF66] hover:bg-[#E2FF66] hover:text-[#0D0E12] font-bold text-xs flex items-center gap-1 transition-all flex-shrink-0"
+                  title="Swap this garment with another piece"
+                >
+                  <Repeat className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Swap Piece</span>
+                </button>
+
                 {/* Scale Down (Zoom -) */}
                 <button
                   onClick={() => updateSelectedLayer({ scale: Math.max(0.4, (selectedLayer.scale || 1) - 0.1) })}
@@ -763,6 +795,19 @@ export default function RemixCanvasEditor() {
                         @{l.pieceData?.ownerUsername}
                       </span>
                     </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSwapTargetLayerIndex(idx);
+                        setIsPickerOpen(true);
+                      }}
+                      className="p-1.5 px-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-[#E2FF66] hover:text-[#0D0E12] text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0"
+                      title="Swap this piece"
+                    >
+                      <Repeat className="w-3 h-3" />
+                      <span className="text-[10px]">Swap</span>
+                    </button>
                   </div>
                 ))
               )}
@@ -798,7 +843,7 @@ export default function RemixCanvasEditor() {
       {isPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           
-          <div className="fixed inset-0" onClick={() => setIsPickerOpen(false)} />
+          <div className="fixed inset-0" onClick={() => { setIsPickerOpen(false); setSwapTargetLayerIndex(null); }} />
 
           <div className="relative w-full max-w-3xl max-h-[92vh] sm:max-h-[85vh] rounded-t-[32px] sm:rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/15 shadow-2xl flex flex-col z-10 transition-colors overflow-hidden">
             
@@ -808,13 +853,26 @@ export default function RemixCanvasEditor() {
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0">
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-[#0D0E12] dark:text-white">Select a Clothing Piece</h3>
+                <h3 className="text-base sm:text-lg font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
+                  {swapTargetLayerIndex !== null ? (
+                    <>
+                      <Repeat className="w-5 h-5 text-[#7B9600] dark:text-[#E2FF66]" />
+                      <span>Swap Piece in Layer #{swapTargetLayerIndex + 1}</span>
+                    </>
+                  ) : (
+                    <span>Select a Clothing Piece</span>
+                  )}
+                </h3>
                 <p className="text-[11px] sm:text-xs text-[#64748B] dark:text-[#8E95A5]">
-                  {isAuthenticated ? 'Add cutouts from your own closet or stylists you follow.' : 'Explore & remix community clothing pieces freely.'}
+                  {swapTargetLayerIndex !== null ? (
+                    <span>Choose any piece to replace <strong>&ldquo;{layers[swapTargetLayerIndex]?.pieceData?.title}&rdquo;</strong> while keeping canvas coordinates.</span>
+                  ) : (
+                    isAuthenticated ? 'Add cutouts from your own closet or stylists you follow.' : 'Explore & remix community clothing pieces freely.'
+                  )}
                 </p>
               </div>
               <button
-                onClick={() => setIsPickerOpen(false)}
+                onClick={() => { setIsPickerOpen(false); setSwapTargetLayerIndex(null); }}
                 className="p-2 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <X className="w-5 h-5" />

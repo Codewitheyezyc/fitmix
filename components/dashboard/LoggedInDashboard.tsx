@@ -332,6 +332,55 @@ export default function LoggedInDashboard() {
             </Link>
           </div>
 
+          {/* Mobile Mix of the Week Spotlight (Visible only on mobile / small screens) */}
+          <div className="lg:hidden">
+            <MixOfTheWeek compact />
+          </div>
+
+          {/* Mobile Featured Stylists Carousel */}
+          <div className="lg:hidden p-4 rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#0D0E12] dark:text-white flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
+                <span>Featured Stylists</span>
+              </h4>
+              <Link href="/discover" className="text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline">
+                Explore All →
+              </Link>
+            </div>
+            
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+              {otherUsers.map(stylist => (
+                <div 
+                  key={`mobile_stylist_${stylist.id}`}
+                  className="flex-shrink-0 w-36 p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 flex flex-col items-center text-center gap-2"
+                >
+                  <Link href={`/closet/${stylist.username}`} className="relative w-11 h-11 rounded-full overflow-hidden border border-black/10 dark:border-white/15">
+                    <img src={stylist.avatarUrl} alt={stylist.displayName} className="w-full h-full object-cover" />
+                  </Link>
+                  <div className="min-w-0 w-full">
+                    <Link href={`/closet/${stylist.username}`} className="text-xs font-bold text-[#0D0E12] dark:text-white truncate block hover:underline">
+                      {stylist.displayName}
+                    </Link>
+                    <span className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate block">
+                      @{stylist.username}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => toggleFollowUser(stylist.id)}
+                    className={`w-full py-1 rounded-full text-[10px] font-bold transition-all ${
+                      stylist.isFollowing
+                        ? 'bg-transparent text-[#64748B] dark:text-[#8E95A5] border border-black/10 dark:border-white/10'
+                        : 'bg-[#E2FF66] text-[#0D0E12] shadow-xs'
+                    }`}
+                  >
+                    {stylist.isFollowing ? 'Following' : '+ Follow'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Main Feed Mix Stream */}
           <div className="space-y-6">
             {filteredMixes.length === 0 ? (

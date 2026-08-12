@@ -268,8 +268,18 @@ export default function MixCard({ mix }: MixCardProps) {
                         {piece.title}
                       </h6>
                       <p className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate">
-                        by <span className="text-[#7B9600] dark:text-[#E2FF66]">@{piece.ownerUsername}</span>
+                        by <span className="text-[#7B9600] dark:text-[#E2FF66] font-semibold">@{piece.ownerUsername}</span>
                       </p>
+                      <div className="mt-1 pt-1 border-t border-black/5 dark:border-white/5">
+                        <Link
+                          href={`/remix?remixMixId=${mix.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[10px] font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline flex items-center gap-1"
+                        >
+                          <Repeat className="w-2.5 h-2.5 stroke-[2.5]" />
+                          <span>Swap in Studio</span>
+                        </Link>
+                      </div>
                     </div>
                   );
                 })}
