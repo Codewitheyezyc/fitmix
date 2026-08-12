@@ -73,6 +73,7 @@ interface StoreContextType {
   login: (email?: string) => void;
   logout: () => void;
   signup: (userData: { username: string; displayName: string; styleInterests: string[]; avatarUrl?: string }) => void;
+  updateCurrentUser: (updates: Partial<UserProfile>) => void;
   
   pieces: Piece[];
   mixes: Mix[];
@@ -202,22 +203,19 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const savedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
       if (savedComments) setComments(JSON.parse(savedComments));
 
-      // 1. Trigger immediate bidirectional sync & migration with Supabase Cloud
+      // 1. One-time sync on mount (no polling - avoids app slowness)
       syncWithCloud();
 
-      // 2. Periodic sync every 6 seconds to keep mobile and desktop 100% matched
-      const syncInterval = setInterval(() => {
-        syncWithCloud();
-      }, 6000);
-
-      // 3. Realtime Supabase broadcast listener for instant cross-device updates
-      const syncChannel = supabase.channel('fitmix_global_sync')
-        .on('broadcast', { event: 'cloud_change' }, () => {
-          syncWithCloud();
-        })
+      // 2. Realtime Supabase subscription for live cross-device updates (no polling)
+      const syncChannel = supabase
+        .channel('fitmix_realtime_sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pieces' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'mixes' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'follows' }, () => syncWithCloud())
         .subscribe();
 
-      // 4. Listen to live Supabase Auth
+      // 3. Listen to live Supabase Auth state changes
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           setIsAuthenticated(true);
@@ -240,13 +238,13 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
             };
             setCurrentUser(syncedUser);
             persist(STORAGE_KEYS.USER, syncedUser);
+            // Sync cloud data on login
             syncWithCloud();
           }
         }
       });
 
       return () => {
-        clearInterval(syncInterval);
         supabase.removeChannel(syncChannel);
         authListener.subscription.unsubscribe();
       };
@@ -256,6 +254,32 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthReady(true);
     }
   }, []);
+
+  // Update current user profile (for avatar upload, bio, display name changes)
+  const updateCurrentUser = (updates: Partial<UserProfile>) => {
+    setCurrentUser(prev => {
+      const updated = { ...prev, ...updates };
+      persist(STORAGE_KEYS.USER, updated);
+      return updated;
+    });
+    // Sync to Supabase profiles table (outside setState to avoid PromiseLike issue)
+    const doSync = async () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.USER);
+        const updated: UserProfile = raw ? JSON.parse(raw) : { ...currentUser, ...updates };
+        await supabase.from('profiles').upsert({
+          id: updated.id,
+          username: updated.username,
+          display_name: updated.displayName,
+          avatar_url: updated.avatarUrl,
+          bio: updated.bio,
+          style_interests: updated.styleInterests,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'username' });
+      } catch (_) {}
+    };
+    doSync();
+  };
 
   // Full bidirectional cloud sync & local migration
   const syncWithCloud = async () => {
@@ -815,7 +839,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       toggleReactionMessage,
       markNotificationsAsRead,
       unreadNotificationsCount,
-      syncWithCloud
+      syncWithCloud,
+      updateCurrentUser
     }}>
       {children}
     </StoreContext.Provider>

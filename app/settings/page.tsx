@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import { uploadImageToStorage } from '@/lib/storageUpload';
 import { 
   User, 
   Lock, 
@@ -18,7 +19,9 @@ import {
   Smartphone,
   Eye,
   Sliders,
-  CheckCircle2
+  CheckCircle2,
+  Camera,
+  RefreshCw
 } from 'lucide-react';
 
 const STYLE_PRESETS = [
@@ -42,7 +45,8 @@ export default function SettingsPage() {
     theme, 
     toggleTheme, 
     setThemeMode, 
-    logout 
+    logout,
+    updateCurrentUser
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
@@ -54,6 +58,12 @@ export default function SettingsPage() {
   const [location, setLocation] = useState(currentUser.location || 'Lagos / London');
   const [styleInterests, setStyleInterests] = useState<string[]>(currentUser.styleInterests || []);
   const [isSavedToast, setIsSavedToast] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Avatar upload state
+  const [avatarPreview, setAvatarPreview] = useState<string>(currentUser.avatarUrl);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Privacy State
   const [isPrivateCloset, setIsPrivateCloset] = useState(false);
@@ -74,10 +84,40 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      // Show local preview instantly
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setAvatarPreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to Supabase CDN
+      const publicUrl = await uploadImageToStorage(file, 'avatars', `avatar_${currentUser.id}`);
+      setAvatarPreview(publicUrl);
+      updateCurrentUser({ avatarUrl: publicUrl });
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSavedToast(true);
-    setTimeout(() => setIsSavedToast(false), 3000);
+    setIsSaving(true);
+    try {
+      updateCurrentUser({ displayName, username, bio, location, styleInterests, avatarUrl: avatarPreview });
+      setIsSavedToast(true);
+      setTimeout(() => setIsSavedToast(false), 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -210,14 +250,44 @@ export default function SettingsPage() {
                 <p className="text-xs text-[#64748B] dark:text-[#8E95A5] mt-0.5">Keep your stylist bio, aesthetics, and public identity up to date.</p>
               </div>
 
-              {/* Avatar Preview */}
+              {/* Avatar Upload */}
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#E2FF66]">
-                  <img src={currentUser.avatarUrl} alt={currentUser.displayName} className="w-full h-full object-cover" />
+                <div className="relative flex-shrink-0">
+                  <div className="w-18 h-18 w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-[#E2FF66] shadow-[0_0_16px_rgba(226,255,102,0.25)]">
+                    <img src={avatarPreview} alt={currentUser.displayName} className="w-full h-full object-cover" />
+                  </div>
+                  {isUploadingAvatar ? (
+                    <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#E2FF66] flex items-center justify-center shadow">
+                      <RefreshCw className="w-3 h-3 text-[#0D0E12] animate-spin" />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#E2FF66] hover:bg-[#d5f356] flex items-center justify-center shadow transition-all hover:scale-110"
+                    >
+                      <Camera className="w-3 h-3 text-[#0D0E12]" />
+                    </button>
+                  )}
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
                 </div>
                 <div>
                   <span className="text-xs font-bold text-[#0D0E12] dark:text-white block">Profile Photo</span>
-                  <span className="text-[11px] text-[#64748B] dark:text-[#8E95A5]">Managed via Supabase Cloud Storage</span>
+                  <span className="text-[11px] text-[#64748B] dark:text-[#8E95A5]">Tap the camera icon to upload a new photo.</span>
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                    className="mt-1.5 text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline disabled:opacity-50"
+                  >
+                    {isUploadingAvatar ? 'Uploading...' : 'Change Photo'}
+                  </button>
                 </div>
               </div>
 
@@ -295,9 +365,17 @@ export default function SettingsPage() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-sm transition-all"
+                  disabled={isSaving || isUploadingAvatar}
+                  className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Save Profile Changes
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Profile Changes</span>
+                  )}
                 </button>
               </div>
             </form>

@@ -35,23 +35,31 @@ export default function MixOfTheWeek({ compact = false }: MixOfTheWeekProps) {
         </div>
 
         {/* Visual Flat-Lay Preview Canvas */}
-        <div className="w-full aspect-[4/3] rounded-2xl canvas-bg-obsidian border border-black/10 dark:border-white/10 relative overflow-hidden flex items-center justify-center p-3 shadow-inner group">
-          {spotlightMix.layers.map((l, idx) => (
-            l.pieceData && (
-              <img
-                key={idx}
-                src={l.pieceData.cutoutImageUrl}
-                alt={l.pieceData.title}
-                className="absolute max-w-[65px] max-h-[65px] object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)] transition-transform group-hover:scale-105"
-                style={{
-                  left: `${l.x}%`,
-                  top: `${l.y}%`,
-                  transform: `translate(-50%, -50%) scale(${l.scale * 0.75}) rotate(${l.rotation}deg)`,
-                  zIndex: l.zIndex,
-                }}
-              />
+        <div className="w-full aspect-[4/3] rounded-2xl canvas-bg-obsidian border border-black/10 dark:border-white/10 relative overflow-hidden shadow-inner group">
+          {spotlightMix.layers.length === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Sparkles className="w-10 h-10 text-[#E2FF66]/30" />
+            </div>
+          ) : (
+            spotlightMix.layers.map((l, idx) =>
+              l.pieceData && (
+                <img
+                  key={idx}
+                  src={l.pieceData.cutoutImageUrl}
+                  alt={l.pieceData.title}
+                  className="absolute object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] transition-transform group-hover:scale-105"
+                  style={{
+                    left: `${l.x ?? 50}%`,
+                    top: `${l.y ?? 50}%`,
+                    width: `${Math.min(Math.max((l.scale ?? 1) * 120, 90), 200)}px`,
+                    height: `${Math.min(Math.max((l.scale ?? 1) * 120, 90), 200)}px`,
+                    transform: `translate(-50%, -50%) rotate(${l.rotation ?? 0}deg)`,
+                    zIndex: l.zIndex ?? idx,
+                  }}
+                />
+              )
             )
-          ))}
+          )}
           
           <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[9px] font-bold text-white flex items-center gap-1">
             <Layers className="w-2.5 h-2.5 text-[#E2FF66]" />
