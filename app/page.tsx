@@ -25,12 +25,8 @@ export default function HomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAFAFC] dark:bg-[#0D0E12]">
         <div className="flex flex-col items-center gap-3 animate-pulse">
-          <div className="relative w-12 h-12 rounded-2xl bg-[#0D0E12] border border-[#E2FF66]/50 shadow-[0_0_20px_rgba(226,255,102,0.25)] flex items-center justify-center">
-            {/* Dot inside the V of M */}
-            <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-[#E2FF66] shadow-[0_0_8px_#E2FF66]" />
-            <span className="font-black text-sm text-[#E2FF66] tracking-tighter mt-0.5">
-              FM
-            </span>
+          <div className="w-10 h-10 rounded-full bg-[#E2FF66]/20 border border-[#E2FF66]/40 flex items-center justify-center font-black text-sm text-[#0D0E12] dark:text-[#E2FF66]">
+            F.
           </div>
         </div>
       </div>
