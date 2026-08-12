@@ -41,7 +41,8 @@ import {
   cloudAddDirectMessage,
   cloudUpdateDirectMessageReaction,
   cloudAddNotification,
-  cloudMarkNotificationsRead
+  cloudMarkNotificationsRead,
+  cloudDeleteUserAccount
 } from './syncEngine';
 
 
@@ -107,6 +108,7 @@ interface StoreContextType {
   syncWithCloud: () => Promise<void>;
   completeOnboarding: () => void;
   updateCurrentUser: (updates: Partial<UserProfile>) => void;
+  deleteAccount: (reason?: string) => Promise<boolean>;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -454,6 +456,50 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
     setIsAuthenticated(false);
     persist(STORAGE_KEYS.AUTH, false);
+  };
+
+  const deleteAccount = async (reason?: string): Promise<boolean> => {
+    try {
+      const targetUserId = currentUser.id;
+      const targetUsername = currentUser.username;
+
+      // 1. Wipe all records from Supabase database tables
+      if (targetUserId && targetUserId !== 'guest') {
+        await cloudDeleteUserAccount(targetUserId, targetUsername);
+      }
+
+      // 2. Sign out from Supabase Auth
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Supabase signOut error during deletion:', err);
+      }
+
+      // 3. Clear all browser storage caches
+      if (typeof window !== 'undefined') {
+        try {
+          Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+          localStorage.removeItem('fitmix_onboarding_done');
+          localStorage.clear();
+        } catch (_) {}
+      }
+
+      // 4. Reset local React store state to empty/guest state
+      setCurrentUser(CURRENT_USER);
+      setPieces([]);
+      setMixes([]);
+      setStories([]);
+      setNotifications([]);
+      setDirectMessages([]);
+      setComments([]);
+      setUsers([]);
+      setIsAuthenticated(false);
+
+      return true;
+    } catch (e) {
+      console.error('deleteAccount exception:', e);
+      return false;
+    }
   };
 
   const completeOnboarding = () => {
@@ -952,7 +998,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       unreadNotificationsCount,
       syncWithCloud,
       updateCurrentUser,
-      completeOnboarding
+      completeOnboarding,
+      deleteAccount
     }}>
       {children}
     </StoreContext.Provider>

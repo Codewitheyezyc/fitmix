@@ -574,3 +574,45 @@ export async function fetchUserRemixCount(username: string): Promise<number> {
     return 0;
   }
 }
+
+/**
+ * Permanently delete a user's account and completely wipe all their associated data
+ * from Supabase (pieces, mixes, stories, comments, DMs, notifications, follows, profile).
+ */
+export async function cloudDeleteUserAccount(userId: string, username: string): Promise<boolean> {
+  try {
+    const cleanUsername = username.trim().toLowerCase();
+
+    await Promise.allSettled([
+      // 1. Delete all pieces owned by user
+      supabase.from('pieces').delete().or(`owner_id.eq.${userId},owner_username.ilike.${cleanUsername}`),
+      
+      // 2. Delete all mixes created by user
+      supabase.from('mixes').delete().or(`creator_id.eq.${userId},creator_username.ilike.${cleanUsername}`),
+      
+      // 3. Delete all stories posted by user
+      supabase.from('stories').delete().or(`user_id.eq.${userId},username.ilike.${cleanUsername}`),
+      
+      // 4. Delete all comments by user
+      supabase.from('comments').delete().or(`user_id.eq.${userId},username.ilike.${cleanUsername}`),
+      
+      // 5. Delete all direct messages (sent or received)
+      supabase.from('direct_messages').delete().or(`sender_id.eq.${userId},receiver_id.eq.${userId}`),
+      
+      // 6. Delete all notifications (for user or triggered by user)
+      supabase.from('notifications').delete().or(`user_id.eq.${userId},actor_id.eq.${userId}`),
+      
+      // 7. Delete all follow connections
+      supabase.from('follows').delete().or(`follower_id.eq.${userId},following_id.eq.${userId}`),
+      
+      // 8. Delete user profile record
+      supabase.from('profiles').delete().or(`id.eq.${userId},username.ilike.${cleanUsername}`)
+    ]);
+
+    return true;
+  } catch (err) {
+    console.error('cloudDeleteUserAccount error:', err);
+    return false;
+  }
+}
+

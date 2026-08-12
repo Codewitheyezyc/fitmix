@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { uploadImageToStorage } from '@/lib/storageUpload';
+import DeleteAccountModal from '@/components/auth/DeleteAccountModal';
 import { 
   User, 
   Lock, 
@@ -64,6 +65,9 @@ export default function SettingsPage() {
   const [avatarPreview, setAvatarPreview] = useState<string>(currentUser.avatarUrl);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete Account Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Privacy State
   const [isPrivateCloset, setIsPrivateCloset] = useState(false);
@@ -216,14 +220,22 @@ export default function SettingsPage() {
             <ChevronRight className="w-3.5 h-3.5 opacity-50" />
           </button>
 
-          {/* Account Logout Action */}
-          <div className="pt-6 mt-6 border-t border-black/5 dark:border-white/5">
+          {/* Account Actions */}
+          <div className="pt-6 mt-6 border-t border-black/5 dark:border-white/5 space-y-1">
             <button
               onClick={logout}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs font-semibold text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span>Log Out of Fitmix</span>
+            </button>
+
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete Account</span>
             </button>
           </div>
 
@@ -566,6 +578,30 @@ export default function SettingsPage() {
                   </div>
                   <span className="text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66]">Enabled</span>
                 </div>
+
+                {/* Danger Zone */}
+                <div className="pt-6 mt-6 border-t border-black/5 dark:border-white/5">
+                  <div className="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/20 space-y-3">
+                    <div className="flex items-center gap-2.5 text-rose-600 dark:text-rose-400">
+                      <Trash2 className="w-4 h-4" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Danger Zone</h4>
+                    </div>
+                    <p className="text-xs text-[#64748B] dark:text-[#8E95A5] leading-relaxed">
+                      Permanently delete your FitMix account and completely wipe all your digital wardrobe pieces, remix lookboards, stories, comments, direct messages, and profile data from our servers.
+                    </p>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setIsDeleteModalOpen(true)}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Account & Wipe Data</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -573,6 +609,11 @@ export default function SettingsPage() {
         </main>
 
       </div>
+
+      {/* Delete Account Multi-Step Modal */}
+      {isDeleteModalOpen && (
+        <DeleteAccountModal onClose={() => setIsDeleteModalOpen(false)} />
+      )}
 
     </div>
   );
