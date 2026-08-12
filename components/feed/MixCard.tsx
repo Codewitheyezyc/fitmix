@@ -61,28 +61,40 @@ export default function MixCard({ mix }: MixCardProps) {
         <div className="p-4 sm:p-5 flex items-center justify-between gap-3 border-b border-black/5 dark:border-white/5">
           <Link 
             href={`/closet/${mix.creatorUsername}`}
-            className="flex items-center gap-3 group"
+            className="flex items-center gap-3 group min-w-0"
           >
-            <div className="relative w-10 h-10 rounded-full overflow-hidden border border-black/10 dark:border-white/15 group-hover:border-[#E2FF66] transition-colors">
+            <div className="relative w-10 h-10 rounded-full overflow-hidden border border-black/10 dark:border-white/15 group-hover:border-[#E2FF66] transition-colors flex-shrink-0">
               <img src={mix.creatorAvatar} alt={mix.creatorName} className="w-full h-full object-cover" />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-[#0D0E12] dark:text-white group-hover:text-[#B5DB10] dark:group-hover:text-[#E2FF66] transition-colors">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="font-bold text-sm text-[#0D0E12] dark:text-white group-hover:text-[#B5DB10] dark:group-hover:text-[#E2FF66] transition-colors truncate">
                   {mix.creatorName}
                 </span>
-                <span className="text-xs text-[#64748B] dark:text-[#8E95A5]">@{mix.creatorUsername}</span>
+                <span className="text-xs text-[#64748B] dark:text-[#8E95A5] truncate">@{mix.creatorUsername}</span>
               </div>
-              <span className="text-[11px] text-[#94A3B8] dark:text-[#6B7280]">
-                {mix.techniqueTags?.[0] || 'Stylist'}
-              </span>
+              
+              {/* Lineage indicator */}
+              {mix.parentMixCreatorUsername ? (
+                <div className="flex items-center gap-1 text-[11px] text-[#7B9600] dark:text-[#E2FF66] font-medium truncate">
+                  <Repeat className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">
+                    Remixed from <strong className="text-[#0D0E12] dark:text-white">@{mix.parentMixCreatorUsername}</strong>
+                    {mix.parentMixTitle ? ` • "${mix.parentMixTitle}"` : ''}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-[#94A3B8] dark:text-[#6B7280] block truncate">
+                  {mix.techniqueTags?.[0] || 'Stylist'}
+                </span>
+              )}
             </div>
           </Link>
 
           {!isOwner && (
             <button
               onClick={() => toggleFollowUser(creator.id)}
-              className={`px-3.5 py-1 text-xs font-semibold rounded-full border transition-all ${
+              className={`px-3.5 py-1 text-xs font-semibold rounded-full border transition-all flex-shrink-0 ${
                 creator.isFollowing
                   ? 'bg-transparent text-[#64748B] dark:text-[#8E95A5] border-black/10 dark:border-white/15 hover:text-black dark:hover:text-white'
                   : 'bg-black/5 dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border-black/10 dark:border-white/20 hover:border-[#E2FF66] hover:text-[#B5DB10] dark:hover:text-[#E2FF66]'
@@ -118,24 +130,19 @@ export default function MixCard({ mix }: MixCardProps) {
                   transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotation}deg) ${layer.flipX ? 'scaleX(-1)' : ''}`,
                   zIndex: layer.zIndex,
                 }}
-                title={`Click to inspect ${piece.title} by @${piece.ownerUsername}`}
+                title={`${piece.title} by @${piece.ownerUsername}`}
               >
-                <div className="relative">
-                  <img
-                    src={piece.cutoutImageUrl}
-                    alt={piece.title}
-                    className="max-w-[130px] sm:max-w-[180px] max-h-[130px] sm:max-h-[180px] object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.6)]"
-                  />
-                  {/* Subtle Piece Hover Tag */}
-                  <div className="opacity-0 group-hover:opacity-100 absolute -bottom-4 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-[#0D0E12]/90 backdrop-blur-md text-[9px] font-bold text-white whitespace-nowrap border border-white/15 pointer-events-none transition-opacity">
-                    @{piece.ownerUsername}&apos;s {piece.category}
-                  </div>
-                </div>
+                <img
+                  src={piece.cutoutImageUrl}
+                  alt={piece.title}
+                  className="max-w-[140px] sm:max-w-[190px] max-h-[140px] sm:max-h-[190px] object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
+                  draggable={false}
+                />
               </div>
             );
           })}
 
-          {/* Quick Remix Action Overlay Button */}
+          {/* Quick Remix Button */}
           <Link
             href={`/remix?remixMixId=${mix.id}`}
             className="absolute top-3 right-3 z-30 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] shadow-[0_0_20px_rgba(226,255,102,0.4)] hover:bg-[#d5f356] hover:scale-105 active:scale-95 transition-all"
@@ -145,16 +152,44 @@ export default function MixCard({ mix }: MixCardProps) {
           </Link>
         </div>
 
+        {/* Community Styling Advice Request Banner */}
+        {mix.techniqueTags?.includes('Help Me Style This') && (
+          <div className="mx-4 sm:mx-5 mt-3 p-3 rounded-2xl bg-gradient-to-r from-[#E2FF66]/20 via-[#E2FF66]/10 to-transparent border border-[#E2FF66]/40 flex items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E2FF66] animate-ping" />
+              <div>
+                <p className="text-xs font-bold text-[#0D0E12] dark:text-white">
+                  Styling Advice Requested
+                </p>
+                <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5]">
+                  @{mix.creatorUsername} is looking for piece swaps & makeover ideas!
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/remix?remixMixId=${mix.id}`}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] transition-all flex items-center gap-1.5 flex-shrink-0 shadow-sm hover:scale-105 active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Give Makeover</span>
+            </Link>
+          </div>
+        )}
+
         {/* Card Body: Technique Tags, Title & Fashion Education breakdown */}
         <div className="p-4 sm:p-5 space-y-3">
           
-          {/* Technique Badges (Positioned cleanly below canvas) */}
+          {/* Technique Badges */}
           {mix.techniqueTags && mix.techniqueTags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-0.5">
               {mix.techniqueTags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/5 dark:bg-[#1F222A] text-[#7B9600] dark:text-[#E2FF66] border border-black/5 dark:border-white/5"
+                  className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                    tag === 'Help Me Style This'
+                      ? 'bg-[#E2FF66] text-[#0D0E12] border-[#E2FF66] shadow-sm'
+                      : 'bg-black/5 dark:bg-[#1F222A] text-[#7B9600] dark:text-[#E2FF66] border-black/5 dark:border-white/5'
+                  }`}
                 >
                   {tag}
                 </span>

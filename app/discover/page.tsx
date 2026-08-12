@@ -132,7 +132,7 @@ function DiscoverContent() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pt-1">
           
           {/* Category Filter */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-thin">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 max-w-full">
             {(['all', 'footwear', 'outerwear', 'tops', 'bottoms', 'bags', 'accessories', 'upcycled'] as const).map(cat => (
               <button
                 key={cat}

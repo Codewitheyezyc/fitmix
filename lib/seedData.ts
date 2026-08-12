@@ -451,6 +451,109 @@ export const INITIAL_MIXES: Mix[] = [
     isLiked: false,
     isSaved: false,
     createdAt: '2026-02-08T16:00:00Z'
+  },
+  {
+    id: 'mix_4',
+    creatorId: 'usr_1',
+    creatorUsername: 'elena_v',
+    creatorName: 'Elena Vance',
+    creatorAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
+    title: 'Tailored Makeover of High-Low Uniform',
+    description: 'Elevated @alex_creator’s look by swapping the relaxed canvas tote for an archival structured shoulder bag.',
+    canvasBackground: 'obsidian',
+    techniqueTags: ['Streetwear x Formal', 'Contrast Textures'],
+    whyItWorks: 'Replacing the canvas tote with structured black leather adds formality to the Converse sneakers without disrupting the effortless drape.',
+    remixChainParentId: 'mix_1',
+    parentMixTitle: 'The Everyday High-Low Uniform',
+    parentMixCreatorUsername: 'alex_creator',
+    layers: [
+      {
+        pieceId: 'pc_2',
+        x: 50,
+        y: 28,
+        scale: 0.95,
+        rotation: -2,
+        zIndex: 1,
+        flipX: false,
+        pieceData: INITIAL_PIECES[1]
+      },
+      {
+        pieceId: 'pc_4',
+        x: 50,
+        y: 65,
+        scale: 0.95,
+        rotation: 0,
+        zIndex: 2,
+        flipX: false,
+        pieceData: INITIAL_PIECES[3]
+      },
+      {
+        pieceId: 'pc_1',
+        x: 68,
+        y: 86,
+        scale: 0.82,
+        rotation: 4,
+        zIndex: 3,
+        flipX: false,
+        pieceData: INITIAL_PIECES[0]
+      },
+      {
+        pieceId: 'pc_7',
+        x: 24,
+        y: 48,
+        scale: 0.75,
+        rotation: -8,
+        zIndex: 4,
+        flipX: false,
+        pieceData: INITIAL_PIECES[6]
+      }
+    ],
+    likesCount: 312,
+    commentsCount: 28,
+    remixCount: 9,
+    isLiked: false,
+    isSaved: true,
+    createdAt: '2026-02-11T11:00:00Z'
+  },
+  {
+    id: 'mix_5',
+    creatorId: 'usr_3',
+    creatorUsername: 'sophie_thrift',
+    creatorName: 'Sophie Laurent',
+    creatorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80',
+    title: 'Thrifted Leather Jacket • Advice Needed!',
+    description: 'Just thrifted this distressed 90s leather jacket. How would you stylists elevate this look? Piece swaps & remix makeovers welcome!',
+    canvasBackground: 'paper',
+    techniqueTags: ['Help Me Style This', 'Vintage / Thrift'],
+    whyItWorks: 'Seeking community styling advice on footwear and trouser silhouettes to balance the heavy leather shoulder drop.',
+    layers: [
+      {
+        pieceId: 'pc_2',
+        x: 50,
+        y: 35,
+        scale: 0.98,
+        rotation: 0,
+        zIndex: 1,
+        flipX: false,
+        pieceData: INITIAL_PIECES[1]
+      },
+      {
+        pieceId: 'pc_5',
+        x: 50,
+        y: 72,
+        scale: 0.95,
+        rotation: 0,
+        zIndex: 2,
+        flipX: false,
+        pieceData: INITIAL_PIECES[4]
+      }
+    ],
+    likesCount: 184,
+    commentsCount: 42,
+    remixCount: 38,
+    isLiked: true,
+    isSaved: false,
+    createdAt: '2026-02-11T14:30:00Z'
   }
 ];
 
@@ -494,6 +597,11 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export const FASHION_TECHNIQUES = [
+  {
+    id: 'tech_fix',
+    name: 'Help Me Style This',
+    description: 'Community styling requests where the creator is looking for piece swaps, makeovers, and alternative combinations.'
+  },
   {
     id: 'tech_1',
     name: 'Color-Blocking',

@@ -62,6 +62,8 @@ export interface Mix {
   isSaved?: boolean;
   createdAt: string;
   remixChainParentId?: string;
+  parentMixTitle?: string;
+  parentMixCreatorUsername?: string;
 }
 
 export interface UserProfile {
