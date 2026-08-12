@@ -33,3 +33,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# proprietary internal blueprints
+/Fit_Mix_Blueprint/
+Fit_Mix_Blueprint/
+
