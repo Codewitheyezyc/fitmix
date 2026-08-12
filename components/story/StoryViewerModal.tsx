@@ -204,15 +204,21 @@ export default function StoryViewerModal({
         onPointerLeave={() => setIsPaused(false)}
       >
         
-        {/* Story Media (Full Screen) */}
-        <div className="absolute inset-0 z-0 bg-black flex items-center justify-center">
+        {/* Story Media (Full Uncropped Image with Ambient Background) */}
+        <div className="absolute inset-0 z-0 bg-[#0D0E12] flex items-center justify-center overflow-hidden">
+          {/* Blurred Ambient Background */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center filter blur-3xl opacity-40 scale-125 pointer-events-none"
+            style={{ backgroundImage: `url(${currentStory.imageUrl})` }}
+          />
+          {/* Sharp Full Garment/Outfit Image (100% visible, never cut off) */}
           <img
             src={currentStory.imageUrl}
             alt={currentStory.caption || 'Story'}
-            className="w-full h-full object-cover sm:object-contain"
+            className="relative z-0 max-w-full max-h-full w-auto h-auto object-contain pointer-events-none select-none drop-shadow-2xl"
           />
           {/* Subtle Dark Vignette Gradients for readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/80 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-transparent to-black/85 pointer-events-none" />
         </div>
 
         {/* Floating Animated Heart on Double-Tap/Like */}

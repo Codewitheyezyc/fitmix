@@ -18,7 +18,8 @@ import {
   Repeat,
   LogOut,
   User,
-  Sliders
+  Sliders,
+  ArrowRight
 } from 'lucide-react';
 import UploadPieceModal from '@/components/piece/UploadPieceModal';
 import DirectMessageDrawer from '@/components/social/DirectMessageDrawer';
@@ -152,32 +153,52 @@ export default function Navbar() {
                           </button>
                         </div>
 
-                        <div className="max-h-72 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 mt-2 space-y-2 scrollbar-thin">
-                          {notifications.map(n => (
-                            <div key={n.id} className="pt-2 pb-1 flex items-start gap-3 text-xs">
-                              <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-black/10 dark:border-white/10">
-                                <img src={n.actorAvatar} alt={n.actorUsername} className="w-full h-full object-cover" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[#0D0E12] dark:text-[#F8F9FA] leading-tight">
-                                  <span className="font-semibold text-[#7B9600] dark:text-[#E2FF66]">@{n.actorUsername}</span>{' '}
-                                  {n.type === 'mention' && (n.message || `mentioned you in a look!`)}
-                                  {n.type === 'remix' && `remixed your ${n.pieceTitle || 'piece'} into a new look!`}
-                                  {n.type === 'like' && `liked your mix "${n.mixTitle}"`}
-                                  {n.type === 'follow' && `started following your closet`}
-                                  {n.type === 'comment' && `commented on your mix "${n.mixTitle}"`}
-                                </p>
-                                <span className="text-[10px] text-[#94A3B8] dark:text-[#6B7280] block mt-1">Just now</span>
-                              </div>
-                              {n.type === 'mention' ? (
-                                <Sparkles className="w-3.5 h-3.5 text-[#E2FF66] flex-shrink-0" />
-                              ) : n.type === 'remix' ? (
-                                <Repeat className="w-3.5 h-3.5 text-[#E2FF66] flex-shrink-0" />
-                              ) : (
-                                <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
-                              )}
+                        <div className="max-h-72 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 mt-2 space-y-2 pr-3 scrollbar-thin">
+                          {notifications.length === 0 ? (
+                            <div className="text-center py-6 text-xs text-[#64748B] dark:text-[#8E95A5]">
+                              No activity yet.
                             </div>
-                          ))}
+                          ) : (
+                            notifications.map(n => (
+                              <div key={n.id} className="pt-2.5 pb-1.5 flex items-start gap-3 text-xs pr-1">
+                                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-black/10 dark:border-white/10">
+                                  <img src={n.actorAvatar} alt={n.actorUsername} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="flex-1 min-w-0 pr-1">
+                                  <p className="text-[#0D0E12] dark:text-[#F8F9FA] leading-tight">
+                                    <span className="font-semibold text-[#7B9600] dark:text-[#E2FF66]">@{n.actorUsername}</span>{' '}
+                                    {n.type === 'mention' && (n.message || `mentioned you in a look!`)}
+                                    {n.type === 'remix' && `remixed your ${n.pieceTitle || 'piece'} into a new look!`}
+                                    {n.type === 'like' && `liked your mix "${n.mixTitle}"`}
+                                    {n.type === 'follow' && `started following your closet`}
+                                    {n.type === 'comment' && `commented on your mix "${n.mixTitle}"`}
+                                  </p>
+                                  <span className="text-[10px] text-[#94A3B8] dark:text-[#6B7280] block mt-1">Just now</span>
+                                </div>
+                                <div className="flex-shrink-0 pl-1">
+                                  {n.type === 'mention' ? (
+                                    <Sparkles className="w-3.5 h-3.5 text-[#E2FF66]" />
+                                  ) : n.type === 'remix' ? (
+                                    <Repeat className="w-3.5 h-3.5 text-[#E2FF66]" />
+                                  ) : (
+                                    <Heart className="w-3.5 h-3.5 text-rose-500" />
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* View all footer link */}
+                        <div className="pt-3 mt-2 border-t border-black/10 dark:border-white/10 text-center flex-shrink-0">
+                          <Link
+                            href="/notifications"
+                            onClick={() => setIsNotifOpen(false)}
+                            className="text-xs font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline inline-flex items-center gap-1"
+                          >
+                            <span>View All Activity & Alerts</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
                         </div>
                       </div>
                     </>
