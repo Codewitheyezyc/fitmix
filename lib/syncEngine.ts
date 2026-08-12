@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Piece, Mix, Story, NotificationItem, UserProfile, DirectMessage } from '@/lib/types';
+import { Piece, Mix, Story, NotificationItem, UserProfile, DirectMessage, Comment } from '@/lib/types';
 import { uploadImageToStorage } from '@/lib/storageUpload';
 
 /**
@@ -14,20 +14,24 @@ export interface CloudSyncData {
   notifications: NotificationItem[];
   follows: { follower_id: string; following_id: string }[];
   users: UserProfile[];
+  comments: Comment[];
+  directMessages: DirectMessage[];
 }
 
 /**
- * Fetch all cloud pieces, mixes, stories, follows, and users from Supabase
+ * Fetch all cloud pieces, mixes, stories, follows, users, comments, and messages from Supabase
  */
 export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
   try {
-    const [piecesRes, mixesRes, storiesRes, notifsRes, followsRes, profilesRes] = await Promise.all([
+    const [piecesRes, mixesRes, storiesRes, notifsRes, followsRes, profilesRes, commentsRes, dmsRes] = await Promise.all([
       supabase.from('pieces').select('*').order('created_at', { ascending: false }),
       supabase.from('mixes').select('*').order('created_at', { ascending: false }),
       supabase.from('stories').select('*').order('created_at', { ascending: false }),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('follows').select('*'),
-      supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('comments').select('*').order('created_at', { ascending: true }),
+      supabase.from('direct_messages').select('*').order('created_at', { ascending: true })
     ]);
 
     const result: Partial<CloudSyncData> = {};
@@ -38,7 +42,7 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
         ownerId: p.owner_id || '',
         ownerUsername: p.owner_username || 'stylist',
         ownerName: p.owner_name || 'Stylist',
-        ownerAvatar: p.owner_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        ownerAvatar: p.owner_avatar || '',
         title: p.title,
         category: p.category,
         cutoutImageUrl: p.cutout_image_url,
@@ -59,7 +63,7 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
         creatorId: m.creator_id,
         creatorUsername: m.creator_username || 'creator',
         creatorName: m.creator_name || 'Creator',
-        creatorAvatar: m.creator_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        creatorAvatar: m.creator_avatar || '',
         title: m.title,
         description: m.description,
         renderedImageUrl: m.rendered_image_url,
@@ -83,7 +87,7 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
         userId: s.user_id,
         username: s.username,
         displayName: s.user_name || s.username || 'Stylist',
-        avatarUrl: s.user_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatarUrl: s.user_avatar || '',
         imageUrl: s.media_url,
         caption: s.caption || '',
         createdAt: s.created_at,
@@ -113,6 +117,50 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
       }));
     }
 
+    if (commentsRes.data && commentsRes.data.length > 0) {
+      result.comments = commentsRes.data.map(c => ({
+        id: c.id,
+        mixId: c.mix_id,
+        userId: c.user_id,
+        username: c.username || 'stylist',
+        userAvatar: c.user_avatar || '',
+        content: c.content,
+        createdAt: c.created_at
+      }));
+    }
+
+    if (dmsRes.data && dmsRes.data.length > 0) {
+      result.directMessages = dmsRes.data.map(d => ({
+        id: d.id,
+        senderId: d.sender_id,
+        receiverId: d.receiver_id,
+        content: d.content,
+        attachedMixId: d.attached_mix_id,
+        attachedPieceId: d.attached_piece_id,
+        reactions: d.reactions || {},
+        status: d.status || 'sent',
+        createdAt: d.created_at
+      }));
+    }
+
+    if (notifsRes.data && notifsRes.data.length > 0) {
+      result.notifications = notifsRes.data.map(n => ({
+        id: n.id,
+        userId: n.user_id,
+        actorId: n.actor_id,
+        actorUsername: n.actor_username || 'stylist',
+        actorAvatar: n.actor_avatar || '',
+        type: n.type,
+        targetMixId: n.target_mix_id,
+        targetPieceId: n.target_piece_id,
+        pieceTitle: n.piece_title,
+        mixTitle: n.mix_title,
+        message: n.message,
+        read: n.read,
+        createdAt: n.created_at
+      }));
+    }
+
     return result;
   } catch (error) {
     console.warn('Cloud sync fetch notice:', error);
@@ -122,7 +170,6 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
 
 /**
  * Automatically migrate all locally stored custom pieces, mixes, and stories to Supabase Cloud.
- * This ensures that whatever was previously created on mobile gets pushed to the cloud and appears on laptop/desktop.
  */
 export async function autoMigrateLocalToCloud(
   localPieces: Piece[],
@@ -135,14 +182,18 @@ export async function autoMigrateLocalToCloud(
     const userPieces = localPieces.filter(
       p => p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase() ||
            p.ownerId === currentUser.id ||
-           p.id.startsWith('pc_') && !['pc_1', 'pc_2', 'pc_3', 'pc_4', 'pc_5', 'pc_6', 'pc_7', 'pc_8'].includes(p.id)
+           p.id.startsWith('pc_')
     );
 
     if (userPieces.length > 0) {
       for (const piece of userPieces) {
         let finalCutoutUrl = piece.cutoutImageUrl;
         if (finalCutoutUrl.startsWith('data:')) {
-          finalCutoutUrl = await uploadImageToStorage(finalCutoutUrl, 'pieces', `piece_${piece.id}`);
+          try {
+            finalCutoutUrl = await uploadImageToStorage(finalCutoutUrl, 'pieces', `piece_${piece.id}`);
+          } catch (_) {
+            continue;
+          }
         }
 
         await supabase.from('pieces').upsert({
@@ -156,7 +207,6 @@ export async function autoMigrateLocalToCloud(
           cutout_image_url: finalCutoutUrl,
           original_image_url: piece.originalImageUrl,
           brand_name: piece.brandName,
-          dominantColors: piece.dominantColors,
           dominant_colors: piece.dominantColors,
           description: piece.description,
           styling_notes: piece.stylingNotes,
@@ -171,7 +221,7 @@ export async function autoMigrateLocalToCloud(
     const userMixes = localMixes.filter(
       m => m.creatorUsername.toLowerCase() === currentUser.username.toLowerCase() ||
            m.creatorId === currentUser.id ||
-           m.id.startsWith('mix_') && !['mix_1', 'mix_2', 'mix_3'].includes(m.id)
+           m.id.startsWith('mix_')
     );
 
     if (userMixes.length > 0) {
@@ -203,14 +253,19 @@ export async function autoMigrateLocalToCloud(
     // 3. Identify user-created custom stories
     const userStories = localStories.filter(
       s => s.username.toLowerCase() === currentUser.username.toLowerCase() ||
-           s.userId === currentUser.id
+           s.userId === currentUser.id ||
+           s.id.startsWith('story_')
     );
 
     if (userStories.length > 0) {
       for (const story of userStories) {
         let finalMediaUrl = story.imageUrl;
         if (finalMediaUrl.startsWith('data:')) {
-          finalMediaUrl = await uploadImageToStorage(finalMediaUrl, 'mixes', `story_${story.id}`);
+          try {
+            finalMediaUrl = await uploadImageToStorage(finalMediaUrl, 'mixes', `story_${story.id}`);
+          } catch (_) {
+            continue;
+          }
         }
 
         await supabase.from('stories').upsert({
@@ -227,16 +282,20 @@ export async function autoMigrateLocalToCloud(
       }
     }
 
-    // 4. Update profile in Supabase
-    await supabase.from('profiles').upsert({
-      id: currentUser.id,
-      username: currentUser.username,
-      display_name: currentUser.displayName,
-      avatar_url: currentUser.avatarUrl,
-      bio: currentUser.bio,
-      style_interests: currentUser.styleInterests,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'username' });
+    // 4. Update profile in Supabase profiles table
+    if (currentUser.id && currentUser.id !== 'guest' && currentUser.username) {
+      await supabase.from('profiles').upsert({
+        id: currentUser.id,
+        username: currentUser.username,
+        display_name: currentUser.displayName,
+        avatar_url: currentUser.avatarUrl,
+        bio: currentUser.bio,
+        location: currentUser.location,
+        style_interests: currentUser.styleInterests,
+        has_completed_onboarding: currentUser.hasCompletedOnboarding ?? true,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'username' });
+    }
 
   } catch (err) {
     console.warn('Auto-migrate error notice:', err);
@@ -319,6 +378,17 @@ export async function cloudAddMix(mix: Mix) {
 }
 
 /**
+ * Update mix likes count in Supabase
+ */
+export async function cloudToggleLikeMix(mixId: string, likesCount: number) {
+  try {
+    await supabase.from('mixes').update({ likes_count: likesCount }).eq('id', mixId);
+  } catch (err) {
+    console.warn('Cloud like mix error:', err);
+  }
+}
+
+/**
  * Push a new story to Supabase
  */
 export async function cloudAddStory(story: Story) {
@@ -356,6 +426,110 @@ export async function cloudDeleteStory(storyId: string) {
 }
 
 /**
+ * Update story likes count in Supabase
+ */
+export async function cloudToggleLikeStory(storyId: string, likesCount: number) {
+  try {
+    await supabase.from('stories').update({ likes_count: likesCount }).eq('id', storyId);
+  } catch (err) {
+    console.warn('Cloud like story error:', err);
+  }
+}
+
+/**
+ * Push a new comment to Supabase
+ */
+export async function cloudAddComment(comment: Comment) {
+  try {
+    await supabase.from('comments').upsert({
+      id: comment.id,
+      mix_id: comment.mixId,
+      user_id: comment.userId,
+      username: comment.username,
+      user_avatar: comment.userAvatar,
+      content: comment.content,
+      created_at: comment.createdAt
+    }, { onConflict: 'id' });
+
+    // Also increment comments_count in mixes table
+    const { data: mix } = await supabase.from('mixes').select('comments_count').eq('id', comment.mixId).maybeSingle();
+    if (mix) {
+      await supabase.from('mixes').update({ comments_count: (mix.comments_count || 0) + 1 }).eq('id', comment.mixId);
+    }
+  } catch (err) {
+    console.warn('Cloud add comment error:', err);
+  }
+}
+
+/**
+ * Push a direct message to Supabase
+ */
+export async function cloudAddDirectMessage(dm: DirectMessage) {
+  try {
+    await supabase.from('direct_messages').upsert({
+      id: dm.id,
+      sender_id: dm.senderId,
+      receiver_id: dm.receiverId,
+      content: dm.content,
+      attached_mix_id: dm.attachedMixId,
+      attached_piece_id: dm.attachedPieceId,
+      reactions: dm.reactions || {},
+      status: dm.status || 'sent',
+      created_at: dm.createdAt
+    }, { onConflict: 'id' });
+  } catch (err) {
+    console.warn('Cloud add DM error:', err);
+  }
+}
+
+/**
+ * Update message reactions in Supabase
+ */
+export async function cloudUpdateDirectMessageReaction(messageId: string, reactions: Record<string, string[]>) {
+  try {
+    await supabase.from('direct_messages').update({ reactions }).eq('id', messageId);
+  } catch (err) {
+    console.warn('Cloud update DM reactions error:', err);
+  }
+}
+
+/**
+ * Push a notification to Supabase
+ */
+export async function cloudAddNotification(notif: NotificationItem) {
+  try {
+    await supabase.from('notifications').upsert({
+      id: notif.id,
+      user_id: notif.userId,
+      actor_id: notif.actorId,
+      actor_username: notif.actorUsername,
+      actor_avatar: notif.actorAvatar,
+      type: notif.type,
+      target_mix_id: notif.targetMixId,
+      target_piece_id: notif.targetPieceId,
+      piece_title: notif.pieceTitle,
+      mix_title: notif.mixTitle,
+      message: notif.message,
+      read: notif.read,
+      created_at: notif.createdAt
+    }, { onConflict: 'id' });
+  } catch (err) {
+    console.warn('Cloud add notification error:', err);
+  }
+}
+
+/**
+ * Mark all notifications as read in Supabase
+ */
+export async function cloudMarkNotificationsRead(userId: string) {
+  try {
+    await supabase.from('notifications').update({ read: true }).eq('user_id', userId);
+  } catch (err) {
+    console.warn('Cloud mark notifications read error:', err);
+  }
+}
+
+/**
  * Sync follow / unfollow status in Supabase
  */
 export async function cloudToggleFollow(followerId: string, followingId: string, isFollowing: boolean) {
@@ -378,16 +552,9 @@ export async function cloudToggleFollow(followerId: string, followingId: string,
 
 /**
  * Fetch the real community remix count for a user.
- * Counts all mixes created by OTHER users where remix_chain_parent_id is set
- * and any layer references a piece owned by this user.
- * 
- * Simplified approach: count mixes where creator_username != username
- * AND remix_chain_parent_id is not null (i.e. it's a remix of someone's work)
- * filtered to remixes of pieces owned by this user.
  */
 export async function fetchUserRemixCount(username: string): Promise<number> {
   try {
-    // First get all piece IDs owned by this user
     const { data: userPieces } = await supabase
       .from('pieces')
       .select('id')
@@ -395,8 +562,6 @@ export async function fetchUserRemixCount(username: string): Promise<number> {
 
     if (!userPieces || userPieces.length === 0) return 0;
 
-    // Count mixes by OTHER users that have a remix_chain_parent_id set
-    // (meaning they remixed something) and were created by someone else
     const { count } = await supabase
       .from('mixes')
       .select('id', { count: 'exact', head: true })

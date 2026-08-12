@@ -14,7 +14,7 @@ export interface TypingState {
 }
 
 export function useRealtimeChat(activeChatUserId?: string) {
-  const { currentUser, directMessages, sendMessage, users } = useStore();
+  const { currentUser, directMessages, sendMessage, users, syncWithCloud } = useStore();
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -34,7 +34,7 @@ export function useRealtimeChat(activeChatUserId?: string) {
     // 1. Listen for Live Broadcasted Messages
     channel.on('broadcast', { event: 'new_message' }, ({ payload }: { payload: DirectMessage }) => {
       if (payload && (payload.receiverId === currentUser.id || payload.senderId === currentUser.id)) {
-        // If it's for current user and not already in store, it's synced
+        syncWithCloud();
       }
     });
 

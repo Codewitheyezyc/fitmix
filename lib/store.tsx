@@ -32,9 +32,16 @@ import {
   cloudAddPiece, 
   cloudDeletePiece, 
   cloudAddMix, 
+  cloudToggleLikeMix,
   cloudAddStory, 
   cloudDeleteStory, 
-  cloudToggleFollow 
+  cloudToggleLikeStory,
+  cloudToggleFollow,
+  cloudAddComment,
+  cloudAddDirectMessage,
+  cloudUpdateDirectMessageReaction,
+  cloudAddNotification,
+  cloudMarkNotificationsRead
 } from './syncEngine';
 
 
@@ -179,13 +186,17 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       // 1. One-time sync on mount (no polling - avoids app slowness)
       syncWithCloud();
 
-      // 2. Realtime Supabase subscription for live cross-device updates (no polling)
+      // 2. Realtime Supabase subscription for live cross-device updates across ALL tables
       const syncChannel = supabase
         .channel('fitmix_realtime_sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'pieces' }, () => syncWithCloud())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'mixes' }, () => syncWithCloud())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => syncWithCloud())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'follows' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => syncWithCloud())
         .subscribe();
 
       // 3. Listen to live Supabase Auth state changes
@@ -357,7 +368,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         setUsers(cloud.users);
         persist(STORAGE_KEYS.USERS, cloud.users);
 
-        // Sync currentUser with real authoritative cloud profile (e.g. avatar uploaded on other device)
         const myCloudProfile = cloud.users.find(u => 
           (activeUser.id && u.id === activeUser.id) || 
           (activeUser.username && u.username.toLowerCase() === activeUser.username.toLowerCase())
@@ -379,6 +389,24 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
             persist(STORAGE_KEYS.USER, updated);
             return updated;
           });
+        }
+      }
+
+      if (cloud.comments && cloud.comments.length > 0) {
+        setComments(cloud.comments);
+        persist(STORAGE_KEYS.COMMENTS, cloud.comments);
+      }
+
+      if (cloud.directMessages && cloud.directMessages.length > 0) {
+        setDirectMessages(cloud.directMessages);
+        persist(STORAGE_KEYS.DMS, cloud.directMessages);
+      }
+
+      if (cloud.notifications && cloud.notifications.length > 0) {
+        const myNotifs = cloud.notifications.filter(n => n.userId === activeUser.id);
+        if (myNotifs.length > 0) {
+          setNotifications(myNotifs);
+          persist(STORAGE_KEYS.NOTIFICATIONS, myNotifs);
         }
       }
     } catch (err) {
@@ -509,6 +537,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const updatedAllNotifs = [...mentionNotifs, ...notifications];
       setNotifications(updatedAllNotifs);
       persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+      mentionNotifs.forEach(n => cloudAddNotification(n));
     }
 
     return newPiece;
@@ -605,7 +634,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     persist(STORAGE_KEYS.PIECES, updatedPieces);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
     cloudAddMix(newMix);
-    persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+    [...newNotifs, ...mentionNotifs].forEach(n => cloudAddNotification(n));
 
     return newMix;
   };
@@ -615,19 +644,22 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const getMixesByCreator = (username: string) => mixes.filter(m => m.creatorUsername.toLowerCase() === username.toLowerCase());
 
   const toggleLikeMix = (mixId: string) => {
+    let nextLikes = 0;
     const updatedMixes = mixes.map(m => {
       if (m.id === mixId) {
         const isLiked = !m.isLiked;
+        nextLikes = isLiked ? m.likesCount + 1 : Math.max(0, m.likesCount - 1);
         return {
           ...m,
           isLiked,
-          likesCount: isLiked ? m.likesCount + 1 : Math.max(0, m.likesCount - 1)
+          likesCount: nextLikes
         };
       }
       return m;
     });
     setMixes(updatedMixes);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
+    cloudToggleLikeMix(mixId, nextLikes);
   };
 
   const toggleSaveMix = (mixId: string) => {
@@ -675,6 +707,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedDms = [...directMessages, newMsg];
     setDirectMessages(updatedDms);
     persist(STORAGE_KEYS.DMS, updatedDms);
+    cloudAddDirectMessage(newMsg);
 
     // Broadcast in real-time over Supabase Realtime Channel
     try {
@@ -692,6 +725,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleReactionMessage = (messageId: string, emoji: string) => {
+    let finalReactions: Record<string, string[]> = {};
     const updatedDms = directMessages.map(d => {
       if (d.id === messageId) {
         const reactions = { ...(d.reactions || {}) };
@@ -703,12 +737,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         } else {
           reactions[emoji] = [...currentReactors, currentUser.id];
         }
+        finalReactions = reactions;
         return { ...d, reactions };
       }
       return d;
     });
     setDirectMessages(updatedDms);
     persist(STORAGE_KEYS.DMS, updatedDms);
+    cloudUpdateDirectMessageReaction(messageId, finalReactions);
   };
 
   const getMessagesBetween = (userId1: string, userId2: string) => {
@@ -731,6 +767,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedComments = [...comments, newComment];
     setComments(updatedComments);
     persist(STORAGE_KEYS.COMMENTS, updatedComments);
+    cloudAddComment(newComment);
 
     // Increment commentsCount on target mix
     const updatedMixes = mixes.map(m => {
@@ -755,6 +792,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const updatedAllNotifs = [...mentionNotifs, ...notifications];
       setNotifications(updatedAllNotifs);
       persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+      mentionNotifs.forEach(n => cloudAddNotification(n));
     }
 
     return newComment;
@@ -802,6 +840,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const updatedAllNotifs = [...mentionNotifs, ...notifications];
       setNotifications(updatedAllNotifs);
       persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+      mentionNotifs.forEach(n => cloudAddNotification(n));
     }
 
     return newStory;
@@ -815,19 +854,22 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleLikeStory = (storyId: string) => {
+    let nextLikes = 0;
     const updated = stories.map(s => {
       if (s.id === storyId) {
         const isLiked = !s.isLiked;
+        nextLikes = (s.likesCount || 0) + (isLiked ? 1 : -1);
         return {
           ...s,
           isLiked,
-          likesCount: (s.likesCount || 0) + (isLiked ? 1 : -1)
+          likesCount: nextLikes
         };
       }
       return s;
     });
     setStories(updated);
     persist(STORAGE_KEYS.STORIES, updated);
+    cloudToggleLikeStory(storyId, nextLikes);
   };
 
   const getUserStoryGroups = (): UserStoryGroup[] => {
@@ -862,6 +904,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedNotifs = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updatedNotifs);
     persist(STORAGE_KEYS.NOTIFICATIONS, updatedNotifs);
+    cloudMarkNotificationsRead(currentUser.id);
   };
 
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
