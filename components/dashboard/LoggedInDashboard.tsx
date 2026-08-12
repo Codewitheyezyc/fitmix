@@ -283,49 +283,49 @@ export default function LoggedInDashboard() {
             </div>
           </div>
 
-          {/* Feed Navigation Tabs */}
-          <div className="flex items-center justify-between gap-2 pb-1">
-            <div className="p-1 rounded-2xl bg-[#F4F5F8] dark:bg-[#16181E] border border-black/5 dark:border-white/5 flex items-center gap-1 shadow-sm">
+          {/* Feed Navigation Tabs (Clean Segmented Control) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+            <div className="w-full sm:w-auto grid grid-cols-3 sm:flex items-center p-1.5 rounded-2xl bg-[#F4F5F8] dark:bg-[#16181E] border border-black/5 dark:border-white/5 shadow-sm gap-1">
               <button
                 onClick={() => setActiveTab('for-you')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`w-full sm:w-auto px-3.5 py-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'for-you'
-                    ? 'bg-[#E2FF66] text-[#0D0E12] font-bold shadow-sm'
+                    ? 'bg-[#E2FF66] text-[#0D0E12] shadow-sm'
                     : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>For You</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('following')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`w-full sm:w-auto px-3.5 py-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'following'
-                    ? 'bg-[#E2FF66] text-[#0D0E12] font-bold shadow-sm'
+                    ? 'bg-[#E2FF66] text-[#0D0E12] shadow-sm'
                     : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>Following</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('trending')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`w-full sm:w-auto px-3.5 py-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'trending'
-                    ? 'bg-[#E2FF66] text-[#0D0E12] font-bold shadow-sm'
+                    ? 'bg-[#E2FF66] text-[#0D0E12] shadow-sm'
                     : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                 }`}
               >
-                <Flame className="w-3.5 h-3.5" />
+                <Flame className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>Trending</span>
               </button>
             </div>
 
             <Link
               href="/remix"
-              className="px-4 py-2 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-[0_0_15px_rgba(226,255,102,0.25)] transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
+              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-[0_0_15px_rgba(226,255,102,0.25)] transition-all hover:scale-102 active:scale-95 whitespace-nowrap flex-shrink-0"
             >
               <Repeat className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Remix Studio</span>

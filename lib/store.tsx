@@ -76,6 +76,7 @@ interface StoreContextType {
   
   // Piece Actions
   addPiece: (pieceData: Omit<Piece, 'id' | 'createdAt' | 'remixCount' | 'likesCount' | 'ownerId' | 'ownerUsername' | 'ownerName' | 'ownerAvatar'>) => Piece;
+  deletePiece: (pieceId: string) => void;
   getPieceById: (id: string) => Piece | undefined;
   getPiecesByOwner: (username: string) => Piece[];
   getPiecesByCategory: (category: CategoryType) => Piece[];
@@ -325,6 +326,12 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return newPiece;
+  };
+
+  const deletePiece = (pieceId: string) => {
+    const updatedPieces = pieces.filter(p => p.id !== pieceId);
+    setPieces(updatedPieces);
+    persist(STORAGE_KEYS.PIECES, updatedPieces);
   };
 
   const getPieceById = (id: string) => pieces.find(p => p.id === id);
@@ -685,6 +692,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       toggleTheme,
       setThemeMode,
       addPiece,
+      deletePiece,
       getPieceById,
       getPiecesByOwner,
       getPiecesByCategory,

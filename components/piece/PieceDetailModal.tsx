@@ -16,7 +16,9 @@ import {
   Share2, 
   Check, 
   Tag, 
-  Palette 
+  Palette,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 interface PieceDetailModalProps {
@@ -25,9 +27,12 @@ interface PieceDetailModalProps {
 }
 
 export default function PieceDetailModal({ piece, onClose }: PieceDetailModalProps) {
-  const { getMixesByPiece } = useStore();
+  const { getMixesByPiece, deletePiece, currentUser } = useStore();
   const [isCopied, setIsCopied] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const remixedMixes = getMixesByPiece(piece.id);
+
+  const isOwner = currentUser.username === piece.ownerUsername || currentUser.id === piece.ownerId;
 
   const handleShare = async () => {
     try {
@@ -38,6 +43,11 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
     } catch (e) {
       console.warn('Clipboard error:', e);
     }
+  };
+
+  const handleDelete = () => {
+    deletePiece(piece.id);
+    onClose();
   };
 
   return (
@@ -69,7 +79,7 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
                   {piece.ownerName}
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/5 text-[#64748B] dark:text-[#8E95A5]">
-                  Owner
+                  {isOwner ? 'Your Piece' : 'Owner'}
                 </span>
               </div>
               <span className="text-[11px] text-[#64748B] dark:text-[#8E95A5] block truncate">
@@ -78,13 +88,24 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
             </div>
           </Link>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {isOwner && (
+              <button
+                onClick={() => setIsConfirmingDelete(true)}
+                className="p-2 rounded-full text-rose-500 hover:bg-rose-500/10 transition-colors"
+                title="Delete piece from closet"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Modal Body */}
@@ -99,42 +120,57 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
             <img
               src={piece.cutoutImageUrl}
               alt={piece.title}
-              className="max-h-full max-w-full object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.35)] transition-transform duration-500 hover:scale-105"
+              className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)] relative z-10 transition-transform duration-300 hover:scale-105"
             />
 
-            {/* Brand & Category Badges */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
-              <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/90 dark:bg-[#0D0E12]/80 backdrop-blur-md text-[#0D0E12] dark:text-[#E2FF66] border border-black/10 dark:border-white/10 shadow-sm">
-                {piece.brandName || 'Independent'}
+            {piece.brandName && (
+              <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 backdrop-blur-md border border-black/5 dark:border-white/10 text-[11px] font-bold text-[#0D0E12] dark:text-white shadow-sm z-10">
+                {piece.brandName}
               </span>
-
-              <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/90 dark:bg-[#0D0E12]/80 backdrop-blur-md text-[#64748B] dark:text-[#8E95A5] border border-black/10 dark:border-white/10 shadow-sm capitalize">
-                {piece.category}
-              </span>
-            </div>
-          </div>
-
-          {/* Piece Metadata */}
-          <div className="space-y-3">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#7B9600] dark:text-[#E2FF66]">
-                Isolated Wardrobe Item
-              </span>
-              <h2 className="text-lg sm:text-xl font-bold text-[#0D0E12] dark:text-white mt-0.5">
-                {piece.title}
-              </h2>
-            </div>
-
-            {piece.description && (
-              <p className="text-xs sm:text-sm text-[#4B5563] dark:text-[#B0B7C6] leading-relaxed">
-                {renderMentionText(piece.description)}
-              </p>
             )}
 
-            {/* Styling Education / Notes */}
+            <span className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 backdrop-blur-md border border-black/5 dark:border-white/10 text-[11px] font-semibold text-[#64748B] dark:text-[#8E95A5] uppercase tracking-wider shadow-sm z-10">
+              {piece.category}
+            </span>
+          </div>
+
+          {/* Details & Metadata Section */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-[#0D0E12] dark:text-white tracking-tight">
+                {piece.title}
+              </h2>
+              {piece.description && (
+                <p className="text-xs sm:text-sm text-[#64748B] dark:text-[#8E95A5] mt-1.5 leading-relaxed">
+                  {piece.description}
+                </p>
+              )}
+            </div>
+
+            {/* Dominant Palette Swatches */}
+            {piece.dominantColors && piece.dominantColors.length > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[11px] font-semibold text-[#64748B] dark:text-[#8E95A5] flex items-center gap-1">
+                  <Palette className="w-3.5 h-3.5" />
+                  Color Palette:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {piece.dominantColors.map((color, idx) => (
+                    <div
+                      key={idx}
+                      className="w-4 h-4 rounded-full border border-black/20 dark:border-white/20 shadow-xs"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Styling Notes */}
             {piece.stylingNotes && (
-              <div className="p-3.5 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A]/80 border border-black/5 dark:border-white/5 space-y-1">
-                <span className="font-semibold text-xs text-[#7B9600] dark:text-[#E2FF66] flex items-center gap-1.5">
+              <div className="p-4 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A]/60 border border-black/5 dark:border-white/5 space-y-1">
+                <span className="text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66] uppercase tracking-wider flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
                   Styling Recommendation
                 </span>
@@ -244,6 +280,45 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
         </div>
 
       </div>
+
+      {/* Delete Piece Confirmation Modal */}
+      {isConfirmingDelete && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 p-6 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            
+            <div className="text-center space-y-1">
+              <h3 className="font-bold text-base text-[#0D0E12] dark:text-white">
+                Remove from your closet?
+              </h3>
+              <p className="text-xs text-[#64748B] dark:text-[#8E95A5] leading-relaxed">
+                This will remove <strong>{piece.title}</strong> from your active closet so no new mixes can use it.
+              </p>
+              <div className="mt-2 p-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[11px] text-[#64748B] dark:text-[#8E95A5] text-left">
+                ✨ <strong>Community Integrity:</strong> Existing community looks that already remixed this piece will preserve their visual snapshot with credit to @{piece.ownerUsername}.
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setIsConfirmingDelete(false)}
+                className="flex-1 py-2.5 rounded-xl border border-black/10 dark:border-white/10 text-xs font-semibold text-[#0D0E12] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition-colors shadow-md"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
