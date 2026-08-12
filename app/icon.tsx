@@ -13,7 +13,6 @@ export default function Icon() {
     (
       <div
         style={{
-          fontSize: 22,
           background: '#0D0E12',
           width: '100%',
           height: '100%',
@@ -21,13 +20,34 @@ export default function Icon() {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '8px',
-          fontWeight: 900,
           fontFamily: 'sans-serif',
-          color: '#E2FF66',
-          border: '1.5px solid rgba(226, 255, 102, 0.4)',
+          border: '1.5px solid rgba(226, 255, 102, 0.5)',
+          position: 'relative',
         }}
       >
-        F<span style={{ color: '#E2FF66', fontSize: 18, marginLeft: -1 }}>.</span>
+        {/* The Signature Period in the V-dip of the M */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '5px',
+            right: '8px',
+            width: '3px',
+            height: '3px',
+            borderRadius: '50%',
+            backgroundColor: '#E2FF66',
+          }}
+        />
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 900,
+            color: '#E2FF66',
+            letterSpacing: '-0.5px',
+            marginTop: '2px',
+          }}
+        >
+          FM
+        </div>
       </div>
     ),
     {
