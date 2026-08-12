@@ -25,7 +25,8 @@ import {
   Info,
   UserCheck,
   UserPlus,
-  Users
+  Users,
+  Wand2
 } from 'lucide-react';
 
 export default function RemixCanvasEditor() {
@@ -176,14 +177,118 @@ export default function RemixCanvasEditor() {
     setSelectedLayerIndex(selectedLayerIndex - 1);
   };
 
-  // Add Piece to Canvas
+  // Smart Auto-Fit & Multi-Outfit Alignment Engine
+  const autoFitAndArrangeLayers = () => {
+    if (layers.length === 0) return;
+
+    const count = layers.length;
+    // Dynamic scale factor based on total piece count
+    const baseScale = count <= 2 ? 0.95 : count === 3 ? 0.85 : count === 4 ? 0.78 : 0.68;
+
+    // Track category duplicates to distribute evenly
+    const catCounts: Record<string, number> = {};
+
+    const updatedLayers = layers.map((layer, idx) => {
+      const cat = layer.pieceData?.category || 'tops';
+      catCounts[cat] = (catCounts[cat] || 0) + 1;
+      const catIdx = catCounts[cat];
+
+      let targetX = 50;
+      let targetY = 50;
+      let targetScale = baseScale;
+      let targetZIndex = idx + 1;
+      let targetRotation = 0;
+
+      switch (cat) {
+        case 'outerwear':
+          targetX = catIdx > 1 ? 55 : 50;
+          targetY = 28;
+          targetScale = baseScale * 1.05;
+          targetZIndex = 1;
+          targetRotation = -2;
+          break;
+        case 'tops':
+          targetX = catIdx > 1 ? (catIdx === 2 ? 65 : 35) : 50;
+          targetY = 38 + (catIdx > 1 ? 6 : 0);
+          targetScale = baseScale * 0.95;
+          targetZIndex = 2;
+          targetRotation = 1;
+          break;
+        case 'bottoms':
+          targetX = catIdx > 1 ? (catIdx === 2 ? 65 : 35) : 50;
+          targetY = 66;
+          targetScale = baseScale * 1.0;
+          targetZIndex = 3;
+          targetRotation = 0;
+          break;
+        case 'footwear':
+          targetX = catIdx > 1 ? (catIdx === 2 ? 35 : 68) : (layers.some(l => l.pieceData?.category === 'bags') ? 70 : 50);
+          targetY = 86;
+          targetScale = baseScale * 0.82;
+          targetZIndex = 4;
+          targetRotation = 4;
+          break;
+        case 'bags':
+          targetX = catIdx > 1 ? 75 : 24;
+          targetY = 48;
+          targetScale = baseScale * 0.75;
+          targetZIndex = 5;
+          targetRotation = -8;
+          break;
+        case 'accessories':
+          targetX = catIdx > 1 ? 25 : 75;
+          targetY = 22;
+          targetScale = baseScale * 0.65;
+          targetZIndex = 6;
+          targetRotation = 6;
+          break;
+        case 'upcycled':
+          targetX = 50;
+          targetY = 36;
+          targetScale = baseScale * 1.0;
+          targetZIndex = 2;
+          break;
+        default:
+          targetX = 50;
+          targetY = 50;
+          targetScale = baseScale;
+          break;
+      }
+
+      return {
+        ...layer,
+        x: targetX,
+        y: targetY,
+        scale: targetScale,
+        rotation: targetRotation,
+        zIndex: targetZIndex
+      };
+    });
+
+    setLayers(updatedLayers);
+  };
+
+  // Add Piece to Canvas with intelligent starting coordinate
   const addPieceToCanvas = (piece: Piece) => {
+    const cat = piece.category;
+    const count = layers.length + 1;
+    const baseScale = count <= 2 ? 0.95 : count === 3 ? 0.85 : count === 4 ? 0.78 : 0.68;
+
+    let initialY = 50;
+    let initialX = 50;
+    if (cat === 'outerwear') initialY = 28;
+    else if (cat === 'tops') initialY = 38;
+    else if (cat === 'bottoms') initialY = 66;
+    else if (cat === 'footwear') { initialY = 86; initialX = 68; }
+    else if (cat === 'bags') { initialY = 48; initialX = 24; }
+    else if (cat === 'accessories') { initialY = 22; initialX = 75; }
+
     const newLayer: MixLayer = {
       pieceId: piece.id,
-      x: 50 + (Math.random() * 8 - 4),
-      y: 50 + (Math.random() * 8 - 4),
-      scale: 0.9,
-      rotation: Math.floor(Math.random() * 10 - 5),
+      x: initialX,
+      y: initialY,
+      scale: baseScale,
+      rotation: Math.floor(Math.random() * 6 - 3),
       zIndex: layers.length + 1,
       flipX: false,
       pieceData: piece
@@ -319,6 +424,18 @@ export default function RemixCanvasEditor() {
             ))}
           </div>
 
+          {/* Smart Auto-Fit & Arrange Button */}
+          {layers.length >= 2 && (
+            <button
+              onClick={autoFitAndArrangeLayers}
+              className="px-3.5 py-2 rounded-full text-xs font-semibold bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/10 dark:border-white/10 hover:border-[#E2FF66] hover:text-[#7B9600] dark:hover:text-[#E2FF66] transition-all flex items-center gap-1.5 shadow-sm"
+              title="Automatically arrange and scale all pieces to fit the canvas"
+            >
+              <Wand2 className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
+              <span className="hidden sm:inline">Auto-Fit Look</span>
+            </button>
+          )}
+
           {/* Publish CTA Button */}
           <button
             onClick={() => setIsPublishModalOpen(true)}
@@ -414,6 +531,17 @@ export default function RemixCanvasEditor() {
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Add Clothing Piece</span>
             </button>
+
+            {layers.length >= 2 && (
+              <button
+                onClick={autoFitAndArrangeLayers}
+                className="px-3.5 py-2 rounded-xl bg-black/5 dark:bg-[#1F222A] text-[#0D0E12] dark:text-white hover:text-[#7B9600] dark:hover:text-[#E2FF66] border border-black/5 dark:border-white/5 font-semibold flex items-center gap-1.5 transition-colors"
+                title="Auto-Fit and arrange all pieces on the canvas"
+              >
+                <Wand2 className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
+                <span>Auto-Fit</span>
+              </button>
+            )}
 
             {selectedLayer && (
               <>

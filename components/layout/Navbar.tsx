@@ -131,44 +131,52 @@ export default function Navbar() {
 
                   {/* Notification Popover */}
                   {isNotifOpen && (
-                    <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl p-4 bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-2xl z-50 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10">
-                        <h4 className="text-sm font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
-                          Remix Activity
-                        </h4>
-                        <button 
-                          onClick={() => setIsNotifOpen(false)}
-                          className="text-[#64748B] dark:text-[#8E95A5] hover:text-black dark:hover:text-white"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                    <>
+                      {/* Mobile click-away backdrop */}
+                      <div 
+                        className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 sm:hidden"
+                        onClick={() => setIsNotifOpen(false)}
+                      />
+                      
+                      <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 sm:w-96 rounded-2xl p-4 bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-2xl z-50 animate-in fade-in duration-200 max-h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 flex-shrink-0">
+                          <h4 className="text-sm font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
+                            <span>Remix Activity</span>
+                          </h4>
+                          <button 
+                            onClick={() => setIsNotifOpen(false)}
+                            className="p-1 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
 
-                      <div className="max-h-72 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 mt-2 space-y-2">
-                        {notifications.map(n => (
-                          <div key={n.id} className="pt-2 pb-1 flex items-start gap-3 text-xs">
-                            <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-black/10 dark:border-white/10">
-                              <img src={n.actorAvatar} alt={n.actorUsername} className="w-full h-full object-cover" />
+                        <div className="max-h-72 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 mt-2 space-y-2 scrollbar-thin">
+                          {notifications.map(n => (
+                            <div key={n.id} className="pt-2 pb-1 flex items-start gap-3 text-xs">
+                              <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-black/10 dark:border-white/10">
+                                <img src={n.actorAvatar} alt={n.actorUsername} className="w-full h-full object-cover" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[#0D0E12] dark:text-[#F8F9FA] leading-tight">
+                                  <span className="font-semibold text-[#7B9600] dark:text-[#E2FF66]">@{n.actorUsername}</span>{' '}
+                                  {n.type === 'remix' && `remixed your ${n.pieceTitle || 'piece'} into a new look!`}
+                                  {n.type === 'like' && `liked your mix "${n.mixTitle}"`}
+                                  {n.type === 'follow' && `started following your closet`}
+                                </p>
+                                <span className="text-[10px] text-[#94A3B8] dark:text-[#6B7280] block mt-1">Just now</span>
+                              </div>
+                              {n.type === 'remix' ? (
+                                <Repeat className="w-3.5 h-3.5 text-[#E2FF66] flex-shrink-0" />
+                              ) : (
+                                <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                              )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[#0D0E12] dark:text-[#F8F9FA] leading-tight">
-                                <span className="font-semibold text-[#7B9600] dark:text-[#E2FF66]">@{n.actorUsername}</span>{' '}
-                                {n.type === 'remix' && `remixed your ${n.pieceTitle || 'piece'} into a new look!`}
-                                {n.type === 'like' && `liked your mix "${n.mixTitle}"`}
-                                {n.type === 'follow' && `started following your closet`}
-                              </p>
-                              <span className="text-[10px] text-[#94A3B8] dark:text-[#6B7280] block mt-1">Just now</span>
-                            </div>
-                            {n.type === 'remix' ? (
-                              <Repeat className="w-3.5 h-3.5 text-[#E2FF66] flex-shrink-0" />
-                            ) : (
-                              <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
-                            )}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
 

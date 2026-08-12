@@ -8,10 +8,10 @@ import { Home, Compass, Layers, Bell, User } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { currentUser, unreadNotificationsCount } = useStore();
+  const { currentUser, unreadNotificationsCount, isAuthenticated } = useStore();
 
-  // Hide on auth routes
-  if (pathname === '/signup' || pathname === '/login' || pathname === '/signin' || pathname === '/confirm-email') {
+  // Hide on landing page for guest / unauthenticated users and on auth routes
+  if (!isAuthenticated || pathname === '/signup' || pathname === '/login' || pathname === '/signin' || pathname === '/confirm-email') {
     return null;
   }
 
