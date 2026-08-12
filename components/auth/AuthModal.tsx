@@ -18,6 +18,9 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'signin' | 'signup';
+  customTitle?: string;
+  customSubtitle?: string;
+  onSuccess?: () => void;
 }
 
 const STYLE_PRESETS = [
@@ -31,7 +34,14 @@ const STYLE_PRESETS = [
   'Tailoring'
 ];
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'signup' }: AuthModalProps) {
+export default function AuthModal({ 
+  isOpen, 
+  onClose, 
+  initialMode = 'signup',
+  customTitle,
+  customSubtitle,
+  onSuccess
+}: AuthModalProps) {
   const { login, signup } = useStore();
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   
@@ -62,11 +72,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup' }: A
       }
       // Demo fallback login
       login('google_user@fitmix.app');
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
     } catch (err: any) {
       console.warn('Supabase OAuth notice:', err?.message);
       // Fallback local sign in
       login('google_user@fitmix.app');
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
     } finally {
       setIsLoading(false);
@@ -133,6 +149,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup' }: A
         login(emailOrPhone);
       }
 
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred during authentication.');
@@ -180,14 +199,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup' }: A
             <span>Fitmix Network</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            {mode === 'signup' ? 'Get started on Fitmix' : 'Welcome back to Fitmix'}
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
+            {customTitle && mode === 'signup' ? customTitle : (mode === 'signup' ? 'Get started on Fitmix' : 'Welcome back to Fitmix')}
           </h2>
           
           <p className="text-xs sm:text-sm text-[#8E95A5] mt-1.5 leading-relaxed">
-            {mode === 'signup' 
+            {customSubtitle && mode === 'signup' ? customSubtitle : (mode === 'signup' 
               ? 'Sign up to post pieces, remix community looks, and share your closet.' 
-              : 'Log in to see your digital wardrobe and new community remixes.'}
+              : 'Log in to see your digital wardrobe and new community remixes.')}
           </p>
         </div>
 

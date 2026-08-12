@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { Piece, MixLayer, CanvasBackground, Mix } from '@/lib/types';
 import { FASHION_TECHNIQUES } from '@/lib/seedData';
+import AuthModal from '@/components/auth/AuthModal';
 import { 
   ArrowLeft, 
   Layers, 
@@ -27,7 +28,9 @@ import {
   UserPlus,
   Users,
   Wand2,
-  Tag
+  Tag,
+  Flame,
+  ChevronRight
 } from 'lucide-react';
 
 export default function RemixCanvasEditor() {
@@ -41,6 +44,7 @@ export default function RemixCanvasEditor() {
     mixes, 
     currentUser, 
     users,
+    isAuthenticated,
     toggleFollowUser,
     createMix, 
     getPiecesByOwner 
@@ -56,8 +60,18 @@ export default function RemixCanvasEditor() {
   // Modal States
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState<'followed' | 'closet' | 'explore'>('followed');
+  const [pickerTab, setPickerTab] = useState<'followed' | 'closet' | 'explore'>(
+    isAuthenticated ? 'followed' : 'explore'
+  );
   const [pickerCategory, setPickerCategory] = useState<string>('all');
+
+  // Guest Conversion / Auth Modal State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalConfig, setAuthModalConfig] = useState<{
+    title?: string;
+    subtitle?: string;
+    onSuccess?: () => void;
+  }>({});
 
   // Custom styling techniques state
   const [customTechniqueList, setCustomTechniqueList] = useState<string[]>([]);
@@ -342,6 +356,43 @@ export default function RemixCanvasEditor() {
     setIsAddingCustomTech(false);
   };
 
+  // Follow to Unlock Gate for Guests
+  const handleFollowToUnlock = (piece: Piece) => {
+    const targetUser = users.find(u => u.username.toLowerCase() === piece.ownerUsername.toLowerCase());
+    if (!isAuthenticated) {
+      setAuthModalConfig({
+        title: `✨ Unlock @${piece.ownerUsername}'s Wardrobe`,
+        subtitle: `Create your free stylist profile in 5 seconds to remix @${piece.ownerUsername}'s clothes, unlock community pieces, and build your digital closet.`,
+        onSuccess: () => {
+          if (targetUser) toggleFollowUser(targetUser.id);
+          addPieceToCanvas(piece);
+        }
+      });
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (targetUser) toggleFollowUser(targetUser.id);
+  };
+
+  // Initiate Publish with Guest Check
+  const handleInitiatePublish = () => {
+    if (layers.length === 0) return;
+
+    if (!isAuthenticated) {
+      setAuthModalConfig({
+        title: '🔥 Claim Your Stylist Handle & Publish',
+        subtitle: 'Create a free account in 5 seconds to publish this lookboard, notify the original piece owners, and show up on the community feed!',
+        onSuccess: () => {
+          setIsPublishModalOpen(true);
+        }
+      });
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setIsPublishModalOpen(true);
+  };
+
   // Publish Outfit Mix
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
@@ -401,6 +452,39 @@ export default function RemixCanvasEditor() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       
+      {/* Guest Welcome Sandbox Banner (For Unregistered Visitors) */}
+      {!isAuthenticated && (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-[#E2FF66]/20 via-[#E2FF66]/10 to-transparent border border-[#E2FF66]/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg animate-in fade-in duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#E2FF66] text-[#0D0E12] flex items-center justify-center flex-shrink-0 font-black text-xs shadow-sm">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-[#0D0E12] dark:text-white">
+                Guest Styling Sandbox • Try Fitmix Studio
+              </h4>
+              <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5]">
+                Drag, rotate, and auto-fit clothes into outfit collages. Create a free profile to unlock 500+ pieces and publish!
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setAuthModalConfig({
+                title: '✨ Join the Collaborative Fashion Network',
+                subtitle: 'Sign up in 5 seconds to unlock every creator closet, publish your lookboards, and build your digital wardrobe.'
+              });
+              setIsAuthModalOpen(true);
+            }}
+            className="w-full sm:w-auto px-4 py-2 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] transition-all hover:scale-105 active:scale-95 shadow-md flex items-center justify-center gap-1.5 flex-shrink-0"
+          >
+            <span>Sign Up Free</span>
+            <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+        </div>
+      )}
+
       {/* Top Studio Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-black/10 dark:border-white/10">
         
@@ -460,7 +544,7 @@ export default function RemixCanvasEditor() {
 
           {/* Publish CTA Button */}
           <button
-            onClick={() => setIsPublishModalOpen(true)}
+            onClick={handleInitiatePublish}
             disabled={layers.length === 0}
             className="px-5 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-[0_0_20px_rgba(226,255,102,0.3)] transition-all hover:scale-105 active:scale-95 disabled:opacity-40 flex items-center gap-2"
           >
@@ -725,7 +809,9 @@ export default function RemixCanvasEditor() {
             <div className="p-4 sm:p-5 border-b border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-[#0D0E12] dark:text-white">Select a Clothing Piece</h3>
-                <p className="text-[11px] sm:text-xs text-[#64748B] dark:text-[#8E95A5]">Add cutouts from your own closet or stylists you follow.</p>
+                <p className="text-[11px] sm:text-xs text-[#64748B] dark:text-[#8E95A5]">
+                  {isAuthenticated ? 'Add cutouts from your own closet or stylists you follow.' : 'Explore & remix community clothing pieces freely.'}
+                </p>
               </div>
               <button
                 onClick={() => setIsPickerOpen(false)}
@@ -832,12 +918,11 @@ export default function RemixCanvasEditor() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const targetUser = users.find(u => u.username.toLowerCase() === piece.ownerUsername.toLowerCase());
-                              if (targetUser) toggleFollowUser(targetUser.id);
+                              handleFollowToUnlock(piece);
                             }}
-                            className="mt-2 w-full py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-[#12141A] text-[#0D0E12] dark:text-white hover:border-[#E2FF66] border border-black/10 dark:border-white/10 flex items-center justify-center gap-1 transition-colors"
+                            className="mt-2 w-full py-1.5 rounded-xl text-[10px] font-bold bg-[#0D0E12] dark:bg-white text-white dark:text-[#0D0E12] hover:bg-[#E2FF66] dark:hover:bg-[#E2FF66] hover:text-[#0D0E12] dark:hover:text-[#0D0E12] shadow-sm flex items-center justify-center gap-1 transition-all active:scale-95"
                           >
-                            <UserPlus className="w-3 h-3 text-[#7B9600] dark:text-[#E2FF66]" />
+                            <UserPlus className="w-3 h-3 text-[#E2FF66] dark:text-[#7B9600]" />
                             <span>Follow to Unlock</span>
                           </button>
                         )}
@@ -1027,6 +1112,16 @@ export default function RemixCanvasEditor() {
           </div>
         </div>
       )}
+
+      {/* Guest Sign Up / Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode="signup"
+        customTitle={authModalConfig.title}
+        customSubtitle={authModalConfig.subtitle}
+        onSuccess={authModalConfig.onSuccess}
+      />
 
     </div>
   );
