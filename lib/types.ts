@@ -78,6 +78,7 @@ export interface UserProfile {
   followersCount: number;
   followingCount: number;
   isFollowing?: boolean;
+  hasCompletedOnboarding?: boolean;
   createdAt: string;
 }
 

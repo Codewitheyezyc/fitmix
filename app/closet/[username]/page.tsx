@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Piece } from '@/lib/types';
@@ -23,6 +23,7 @@ import PieceDetailModal from '@/components/piece/PieceDetailModal';
 import DirectMessageDrawer from '@/components/social/DirectMessageDrawer';
 import MixCard from '@/components/feed/MixCard';
 import Link from 'next/link';
+import { fetchUserRemixCount } from '@/lib/syncEngine';
 
 export default function ClosetProfilePage() {
   const params = useParams();
@@ -45,10 +46,12 @@ export default function ClosetProfilePage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [liveRemixCount, setLiveRemixCount] = useState<number | null>(null);
 
-  // Ensure latest cloud items are synced on load
-  React.useEffect(() => {
+  // Ensure latest cloud items are synced on load + fetch live remix count
+  useEffect(() => {
     syncWithCloud();
+    fetchUserRemixCount(username).then(count => setLiveRemixCount(count));
   }, [username]);
 
   const isOwner = currentUser.username.toLowerCase() === username.toLowerCase();
@@ -59,12 +62,12 @@ export default function ClosetProfilePage() {
         id: 'usr_guest',
         username: username,
         displayName: username,
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatarUrl: '',
         bio: 'Fashion lover & outfit mixer.',
         styleInterests: ['Streetwear', 'Vintage'],
-        totalRemixesReceived: 24,
-        followersCount: 120,
-        followingCount: 80,
+        totalRemixesReceived: 0,
+        followersCount: 0,
+        followingCount: 0,
         isFollowing: false,
         createdAt: '2026-01-01T00:00:00Z'
       };
@@ -73,7 +76,8 @@ export default function ClosetProfilePage() {
   const userMixes = getMixesByCreator(username);
   const savedMixes = mixes.filter(m => m.isSaved);
 
-  const totalRemixes = userPieces.reduce((acc, p) => acc + (p.remixCount || 0), 0);
+  // Live remix count from Supabase (null = loading, show '—')
+  const totalRemixes = liveRemixCount ?? '—';
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">

@@ -356,3 +356,37 @@ export async function cloudToggleFollow(followerId: string, followingId: string,
     console.warn('Cloud follow sync error:', err);
   }
 }
+
+/**
+ * Fetch the real community remix count for a user.
+ * Counts all mixes created by OTHER users where remix_chain_parent_id is set
+ * and any layer references a piece owned by this user.
+ * 
+ * Simplified approach: count mixes where creator_username != username
+ * AND remix_chain_parent_id is not null (i.e. it's a remix of someone's work)
+ * filtered to remixes of pieces owned by this user.
+ */
+export async function fetchUserRemixCount(username: string): Promise<number> {
+  try {
+    // First get all piece IDs owned by this user
+    const { data: userPieces } = await supabase
+      .from('pieces')
+      .select('id')
+      .eq('owner_username', username);
+
+    if (!userPieces || userPieces.length === 0) return 0;
+
+    // Count mixes by OTHER users that have a remix_chain_parent_id set
+    // (meaning they remixed something) and were created by someone else
+    const { count } = await supabase
+      .from('mixes')
+      .select('id', { count: 'exact', head: true })
+      .neq('creator_username', username)
+      .not('remix_chain_parent_id', 'is', null);
+
+    return count || 0;
+  } catch (err) {
+    console.warn('fetchUserRemixCount error:', err);
+    return 0;
+  }
+}

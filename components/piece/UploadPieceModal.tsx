@@ -96,12 +96,14 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
   };
 
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!imageFile || !title) return;
 
     setIsSaving(true);
+    setUploadError(null);
     try {
       let finalImageUrl = imageFile;
       if (imageFile.startsWith('data:')) {
@@ -122,8 +124,9 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
         onSuccess(newPiece.id);
       }
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving piece:', err);
+      setUploadError(err?.message || 'Could not upload piece image. Please check your internet connection and try again.');
     } finally {
       setIsSaving(false);
     }
@@ -169,6 +172,20 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
         {/* Scrollable Form Body */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin">
           
+          {/* Upload Error Banner */}
+          {uploadError && (
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between gap-2 animate-in fade-in">
+              <span>{uploadError}</span>
+              <button 
+                type="button" 
+                onClick={() => setUploadError(null)}
+                className="p-1 rounded-full hover:bg-rose-500/20 text-rose-500"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Photo Dropzone & Preview */}
           {!imageFile && !isProcessing ? (
             <div className="space-y-3">

@@ -3,9 +3,10 @@ import './globals.css';
 import { StoreProvider } from '@/lib/store';
 import Navbar from '@/components/layout/Navbar';
 import BottomNav from '@/components/layout/BottomNav';
+import OnboardingGate from '@/components/onboarding/OnboardingGate';
 
 export const metadata: Metadata = {
-  title: 'Fitmix. — Your closet. Everyone’s creativity.',
+  title: "Fitmix. — Your closet. Everyone's creativity.",
   description: 'The collaborative social fashion remixing platform. Post clothing pieces, combine community wardrobes into flat-lay outfit collages, and learn styling naturally.',
   icons: {
     icon: [
@@ -40,9 +41,12 @@ export default function RootLayout({
               {children}
             </main>
             <BottomNav />
+            {/* Onboarding modal — shown once for new users after signup */}
+            <OnboardingGate />
           </div>
         </StoreProvider>
       </body>
     </html>
   );
 }
+

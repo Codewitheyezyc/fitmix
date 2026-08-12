@@ -21,7 +21,8 @@ import {
   INITIAL_MIXES, 
   INITIAL_NOTIFICATIONS,
   INITIAL_STORIES,
-  INITIAL_DMS
+  INITIAL_DMS,
+  INITIAL_COMMENTS
 } from './seedData';
 import { createMentionNotifications } from './mentionUtils';
 import { supabase } from './supabase';
@@ -36,35 +37,6 @@ import {
   cloudToggleFollow 
 } from './syncEngine';
 
-const INITIAL_COMMENTS: Comment[] = [
-  {
-    id: 'cmt_1',
-    mixId: 'mix_1',
-    userId: 'usr_1',
-    username: 'elena_v',
-    userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
-    content: 'The lime mohair knit cuts through that vintage Burberrys trench coat so well! Love the contrast.',
-    createdAt: '2026-02-10T20:15:00Z'
-  },
-  {
-    id: 'cmt_2',
-    mixId: 'mix_1',
-    userId: 'usr_2',
-    username: 'kai_upcycle',
-    userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-    content: 'Need to try styling those Sambas with wide pleated pants this weekend.',
-    createdAt: '2026-02-10T21:40:00Z'
-  },
-  {
-    id: 'cmt_3',
-    mixId: 'mix_2',
-    userId: 'usr_3',
-    username: 'sophie_thrift',
-    userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80',
-    content: 'The bottle-cap texture looks like metallic embroidery against the dark trousers.',
-    createdAt: '2026-02-09T16:00:00Z'
-  }
-];
 
 interface StoreContextType {
   currentUser: UserProfile;
@@ -73,7 +45,6 @@ interface StoreContextType {
   login: (email?: string) => void;
   logout: () => void;
   signup: (userData: { username: string; displayName: string; styleInterests: string[]; avatarUrl?: string }) => void;
-  updateCurrentUser: (updates: Partial<UserProfile>) => void;
   
   pieces: Piece[];
   mixes: Mix[];
@@ -127,21 +98,23 @@ interface StoreContextType {
   markNotificationsAsRead: () => void;
   unreadNotificationsCount: number;
   syncWithCloud: () => Promise<void>;
+  completeOnboarding: () => void;
+  updateCurrentUser: (updates: Partial<UserProfile>) => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
 
 const STORAGE_KEYS = {
-  PIECES: 'fitmix_pieces_v3',
-  MIXES: 'fitmix_mixes_v3',
-  USERS: 'fitmix_users_v3',
-  NOTIFICATIONS: 'fitmix_notifications_v3',
-  DMS: 'fitmix_dms_v3',
-  COMMENTS: 'fitmix_comments_v3',
-  STORIES: 'fitmix_stories_v3',
-  THEME: 'fitmix_theme_v3',
-  AUTH: 'fitmix_auth_v3',
-  USER: 'fitmix_current_user_v3'
+  PIECES: 'fitmix_pieces_v4',
+  MIXES: 'fitmix_mixes_v4',
+  USERS: 'fitmix_users_v4',
+  NOTIFICATIONS: 'fitmix_notifications_v4',
+  DMS: 'fitmix_dms_v4',
+  COMMENTS: 'fitmix_comments_v4',
+  STORIES: 'fitmix_stories_v4',
+  THEME: 'fitmix_theme_v4',
+  AUTH: 'fitmix_auth_v4',
+  USER: 'fitmix_current_user_v4'
 };
 
 export const StoreProvider = ({ children }: { children: ReactNode }) => {
@@ -387,17 +360,26 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     persist(STORAGE_KEYS.AUTH, false);
   };
 
+  const completeOnboarding = () => {
+    setCurrentUser(prev => {
+      const updated = { ...prev, hasCompletedOnboarding: true };
+      persist(STORAGE_KEYS.USER, updated);
+      return updated;
+    });
+  };
+
   const signup = (userData: { username: string; displayName: string; styleInterests: string[]; avatarUrl?: string }) => {
     const newUser: UserProfile = {
       id: `usr_${Date.now()}`,
       username: userData.username,
       displayName: userData.displayName,
-      avatarUrl: userData.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      avatarUrl: userData.avatarUrl || '',
       bio: 'Fashion lover & outfit mixer.',
       styleInterests: userData.styleInterests,
       totalRemixesReceived: 0,
       followersCount: 0,
       followingCount: 0,
+      hasCompletedOnboarding: false,
       createdAt: new Date().toISOString()
     };
     setCurrentUser(newUser);
@@ -840,7 +822,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       markNotificationsAsRead,
       unreadNotificationsCount,
       syncWithCloud,
-      updateCurrentUser
+      updateCurrentUser,
+      completeOnboarding
     }}>
       {children}
     </StoreContext.Provider>
