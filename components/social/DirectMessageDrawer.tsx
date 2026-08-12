@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import { useRealtimeChat } from '@/lib/useRealtimeChat';
 import { UserProfile, Mix } from '@/lib/types';
 import { X, Send, MessageCircle, Sparkles, User, Shirt, Layers, Repeat, Maximize2 } from 'lucide-react';
 
@@ -18,6 +19,9 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
   const [activeUser, setActiveUser] = useState<UserProfile>(targetUser || otherUsers[0]);
   const [messageText, setMessageText] = useState('');
 
+  // Real-time Chat Hook
+  const { isTargetUserTyping, sendTypingStatus } = useRealtimeChat(activeUser?.id);
+
   const messages = activeUser ? getMessagesBetween(currentUser.id, activeUser.id) : [];
 
   const handleSend = (e: React.FormEvent) => {
@@ -25,6 +29,7 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
     if (!messageText.trim() || !activeUser) return;
 
     sendMessage(activeUser.id, messageText.trim());
+    sendTypingStatus(activeUser.id, false);
     setMessageText('');
   };
 
@@ -37,6 +42,7 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-[#7B9600] dark:text-[#E2FF66]" />
             <h3 className="font-bold text-sm text-[#0D0E12] dark:text-white">Quick Chat</h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E2FF66]/20 text-[#0D0E12] dark:text-[#E2FF66]">Live</span>
           </div>
           <div className="flex items-center gap-2">
             {activeUser && (
@@ -59,7 +65,7 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
         </div>
 
         {/* User Conversation List Carousel */}
-        <div className="p-3 border-b border-black/5 dark:border-white/5 bg-[#F4F5F8] dark:bg-[#0D0E12]/50 flex gap-2 overflow-x-auto">
+        <div className="p-3 border-b border-black/5 dark:border-white/5 bg-[#F4F5F8] dark:bg-[#0D0E12]/50 flex gap-2 overflow-x-auto no-scrollbar">
           {otherUsers.map(user => {
             const isSelected = activeUser?.id === user.id;
             return (
@@ -72,7 +78,7 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
                     : 'bg-transparent border-transparent text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                 }`}
               >
-                <div className="w-6 h-6 rounded-full overflow-hidden border border-black/10 dark:border-white/10">
+                <div className="relative w-6 h-6 rounded-full overflow-hidden border border-black/10 dark:border-white/10">
                   <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
                 </div>
                 <span className="font-semibold">{user.displayName}</span>
@@ -87,8 +93,11 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
             
             {/* User Profile Bar */}
             <div className="px-4 py-2 bg-[#F8F9FA] dark:bg-[#1F222A]/40 border-b border-black/5 dark:border-white/5 flex items-center justify-between text-xs">
-              <span className="text-[#64748B] dark:text-[#8E95A5]">Chatting with <strong className="text-[#0D0E12] dark:text-white">@{activeUser.username}</strong></span>
-              <span className="text-[10px] text-[#7B9600] dark:text-[#E2FF66] font-semibold">Mutual Follow Active</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[#64748B] dark:text-[#8E95A5]">Chatting with <strong className="text-[#0D0E12] dark:text-white">@{activeUser.username}</strong></span>
+              </div>
+              <span className="text-[10px] text-[#7B9600] dark:text-[#E2FF66] font-semibold">Active now</span>
             </div>
 
             {/* Message Thread */}
@@ -138,6 +147,18 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
                   );
                 })
               )}
+
+              {/* Real-time Typing Bubble */}
+              {isTargetUserTyping && (
+                <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-[#8E95A5] pl-1 animate-in fade-in">
+                  <div className="flex items-center gap-1 bg-[#F4F5F8] dark:bg-[#1F222A] px-3 py-1.5 rounded-2xl rounded-tl-none border border-black/5 dark:border-white/5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#7B9600] dark:bg-[#E2FF66] animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#7B9600] dark:bg-[#E2FF66] animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#7B9600] dark:bg-[#E2FF66] animate-bounce" />
+                  </div>
+                  <span className="text-[10px] font-medium text-[#64748B] dark:text-[#8E95A5]">Typing...</span>
+                </div>
+              )}
             </div>
 
             {/* Message Input Box */}
@@ -146,7 +167,11 @@ export default function DirectMessageDrawer({ onClose, targetUser }: DirectMessa
                 type="text"
                 placeholder={`Message @${activeUser.username}...`}
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
+                onChange={(e) => {
+                  setMessageText(e.target.value);
+                  sendTypingStatus(activeUser.id, e.target.value.length > 0);
+                }}
+                onBlur={() => sendTypingStatus(activeUser.id, false)}
                 className="flex-1 px-4 py-2.5 text-xs rounded-full bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#6B7280] border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
               />
               <button

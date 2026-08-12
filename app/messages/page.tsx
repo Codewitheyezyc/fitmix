@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useRealtimeChat } from '@/lib/useRealtimeChat';
 import { DirectMessage, UserProfile, Mix, Piece } from '@/lib/types';
 import { 
   Send, 
@@ -20,8 +21,20 @@ import {
   ExternalLink,
   MessageCircle,
   ShieldCheck,
-  ChevronLeft
+  ChevronLeft,
+  Smile,
+  X,
+  Plus
 } from 'lucide-react';
+
+const QUICK_STYLING_PROMPTS = [
+  "✨ Loved your latest remix!",
+  "👟 How would you style these footwear pieces?",
+  "🧥 Can I use your coat in a new flat-lay look?",
+  "💡 What bottoms would balance this silhouette?"
+];
+
+const EMOJI_REACTIONS = ['❤️', '🔥', '✨', '👟', '👏', '😂'];
 
 function MessagesContent() {
   const searchParams = useSearchParams();
@@ -35,6 +48,7 @@ function MessagesContent() {
     pieces, 
     directMessages, 
     sendMessage, 
+    toggleReactionMessage,
     toggleFollowUser 
   } = useStore();
 
@@ -48,6 +62,7 @@ function MessagesContent() {
   const [messageText, setMessageText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
+  const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
   const [selectedAttachmentMixId, setSelectedAttachmentMixId] = useState<string | null>(
     attachedMixParam || null
   );
@@ -56,9 +71,12 @@ function MessagesContent() {
 
   const activeUser = users.find(u => u.id === selectedUserId) || otherUsers[0];
 
-  // Mutual follow status
-  const isFollowingThem = Boolean(activeUser?.isFollowing);
-  const isMutualFollow = isFollowingThem;
+  // Real-time Chat & Presence hook
+  const { 
+    isTargetUserTyping, 
+    isTargetUserOnline, 
+    sendTypingStatus 
+  } = useRealtimeChat(selectedUserId);
 
   // Filter messages for active conversation
   const conversationMessages = directMessages.filter(
@@ -69,10 +87,10 @@ function MessagesContent() {
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversationMessages.length, selectedUserId, mobileView]);
+  }, [conversationMessages.length, selectedUserId, mobileView, isTargetUserTyping]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSend = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!messageText.trim() && !selectedAttachmentMixId) return;
 
     sendMessage(
@@ -81,17 +99,29 @@ function MessagesContent() {
       selectedAttachmentMixId || undefined
     );
 
+    sendTypingStatus(selectedUserId, false);
     setMessageText('');
     setSelectedAttachmentMixId(null);
   };
 
+  const handleQuickPrompt = (prompt: string) => {
+    setMessageText(prompt);
+    sendTypingStatus(selectedUserId, true);
+  };
+
   const myMixes = mixes.filter(m => m.creatorId === currentUser.id || m.creatorUsername === currentUser.username);
 
+  // Filter conversations list by search
+  const filteredUsers = otherUsers.filter(u => 
+    u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 py-4 sm:py-6 min-h-[calc(100vh-5rem)]">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 py-4 sm:py-6 min-h-[calc(100vh-5rem)] pb-24 sm:pb-8">
       
       {/* Container Box */}
-      <div className="rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[640px] max-h-[82vh] transition-colors">
+      <div className="rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[640px] max-h-[85vh] transition-colors">
         
         {/* ========================================================================= */}
         {/* LEFT COLUMN: Conversations List (4 Cols)                                   */}
@@ -101,14 +131,15 @@ function MessagesContent() {
         }`}>
           
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-black/5 dark:border-white/5">
+          <div className="p-4 sm:p-5 border-b border-black/5 dark:border-white/5 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
                 <MessageCircle className="w-5 h-5 text-[#7B9600] dark:text-[#E2FF66]" />
                 <span>Messages</span>
               </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E2FF66]/20 text-[#0D0E12] dark:text-[#E2FF66]">
-                Direct Chat
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#E2FF66]/20 text-[#0D0E12] dark:text-[#E2FF66] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Real-Time Live
               </span>
             </div>
 
@@ -120,61 +151,65 @@ function MessagesContent() {
                 placeholder="Search stylists..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 rounded-xl bg-white dark:bg-[#1E2028] text-xs text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66]"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-[#1F222A] text-[#0D0E12] dark:text-white text-xs placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
               />
             </div>
           </div>
 
-          {/* Stylists List */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
-            {otherUsers
-              .filter(u => u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) || u.username.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map(user => {
-                const isSelected = user.id === selectedUserId;
-                const userDms = directMessages.filter(
-                  d => (d.senderId === currentUser.id && d.receiverId === user.id) ||
-                       (d.senderId === user.id && d.receiverId === currentUser.id)
-                );
-                const lastMsg = userDms[userDms.length - 1];
+          {/* Conversations User List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 p-2 space-y-1 scrollbar-thin">
+            {filteredUsers.map(user => {
+              const isSelected = selectedUserId === user.id;
+              const userDms = directMessages.filter(
+                d => (d.senderId === user.id && d.receiverId === currentUser.id) ||
+                     (d.senderId === currentUser.id && d.receiverId === user.id)
+              );
+              const lastMsg = userDms[userDms.length - 1];
 
-                return (
-                  <div
-                    key={user.id}
-                    onClick={() => {
-                      setSelectedUserId(user.id);
-                      setMobileView('chat');
-                    }}
-                    className={`p-3 rounded-2xl cursor-pointer transition-all flex items-center gap-3 ${
-                      isSelected
-                        ? 'bg-white dark:bg-[#1E2028] shadow-md border border-black/5 dark:border-white/10'
-                        : 'hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="relative w-11 h-11 rounded-full overflow-hidden border border-black/10 dark:border-white/15 flex-shrink-0">
+              return (
+                <div
+                  key={user.id}
+                  onClick={() => {
+                    setSelectedUserId(user.id);
+                    setMobileView('chat');
+                  }}
+                  className={`p-3 rounded-2xl cursor-pointer transition-all flex items-center gap-3 ${
+                    isSelected
+                      ? 'bg-white dark:bg-[#1F222A] shadow-md border border-[#E2FF66]/50'
+                      : 'hover:bg-white/60 dark:hover:bg-[#1F222A]/50 border border-transparent'
+                  }`}
+                >
+                  <div className="relative flex-shrink-0">
+                    <div className="w-11 h-11 rounded-full overflow-hidden border border-black/10 dark:border-white/10">
                       <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
-                      {user.isFollowing && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#16181E]" title="Mutual Stylist" />
+                    </div>
+                    {/* Live Online Badge */}
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-[#16181E] absolute -bottom-0.5 -right-0.5 shadow-[0_0_6px_#10B981]" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <h4 className="text-xs font-bold text-[#0D0E12] dark:text-white truncate">
+                        {user.displayName}
+                      </h4>
+                      {lastMsg && (
+                        <span className="text-[10px] text-[#94A3B8] dark:text-[#737373] flex-shrink-0">
+                          {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <h4 className="text-xs font-bold text-[#0D0E12] dark:text-white truncate">
-                          {user.displayName}
-                        </h4>
-                        {lastMsg && (
-                          <span className="text-[9px] text-[#94A3B8] dark:text-[#737373]">
-                            {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5] truncate">
-                        {lastMsg ? lastMsg.content : `@${user.username}`}
-                      </p>
-                    </div>
+                    <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5] truncate">
+                      {lastMsg ? (
+                        lastMsg.senderId === currentUser.id ? `You: ${lastMsg.content}` : lastMsg.content
+                      ) : (
+                        `Start styling chat with @${user.username}`
+                      )}
+                    </p>
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
           </div>
 
         </aside>
@@ -187,7 +222,7 @@ function MessagesContent() {
         }`}>
           
           {/* Active Conversation Top Bar */}
-          <div className="p-3.5 sm:p-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between gap-2 flex-shrink-0">
+          <div className="p-3.5 sm:p-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between gap-2 flex-shrink-0 bg-white/80 dark:bg-[#16181E]/80 backdrop-blur-md">
             <div className="flex items-center gap-2.5 min-w-0">
               
               {/* Back to list button on Mobile */}
@@ -199,8 +234,9 @@ function MessagesContent() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
 
-              <Link href={`/closet/${activeUser?.username}`} className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-black/10 dark:border-white/15 flex-shrink-0 group">
+              <Link href={`/closet/${activeUser?.username}`} className="relative w-10 h-10 rounded-full overflow-hidden border border-black/10 dark:border-white/15 flex-shrink-0 group">
                 <img src={activeUser?.avatarUrl} alt={activeUser?.displayName} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-[#16181E] absolute -bottom-0.5 -right-0.5 shadow-[0_0_6px_#10B981]" />
               </Link>
               
               <div className="min-w-0 flex-1">
@@ -211,22 +247,24 @@ function MessagesContent() {
                   <span className="text-[11px] text-[#7B9600] dark:text-[#E2FF66] font-semibold truncate hidden sm:inline">@{activeUser?.username}</span>
                 </div>
 
-                {/* Mutual Follow Status */}
-                <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
-                  <ShieldCheck className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">Mutual Connection</span>
+                {/* Real-time Status */}
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Active now</span>
                 </div>
               </div>
             </div>
 
-            {/* Sleek Compact View Closet Button */}
-            <Link
-              href={`/closet/${activeUser?.username}`}
-              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] font-semibold bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-colors flex items-center gap-1 flex-shrink-0"
-            >
-              <span>Closet</span>
-              <ExternalLink className="w-3 h-3" />
-            </Link>
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link
+                href={`/closet/${activeUser?.username}`}
+                className="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-colors flex items-center gap-1"
+              >
+                <span>View Closet</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
           </div>
 
           {/* Messages Stream */}
@@ -240,21 +278,49 @@ function MessagesContent() {
                 <p className="text-[11px] sm:text-xs max-w-sm mx-auto mt-1 px-4">
                   Ask @{activeUser?.username} about pieces in their closet or share a remix lookboard directly into this thread.
                 </p>
+
+                {/* Quick Prompts */}
+                <div className="mt-4 flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+                  {QUICK_STYLING_PROMPTS.map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleQuickPrompt(prompt)}
+                      className="px-3 py-1.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] text-xs font-medium transition-all hover:scale-102"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               conversationMessages.map(msg => {
                 const isMe = msg.senderId === currentUser.id;
                 const attachedMix = msg.attachedMixId ? mixes.find(m => m.id === msg.attachedMixId) : null;
                 const attachedPiece = msg.attachedPieceId ? pieces.find(p => p.id === msg.attachedPieceId) : null;
+                const reactions = msg.reactions || {};
 
                 return (
                   <div
                     key={msg.id}
-                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-md ${isMe ? 'ml-auto' : 'mr-auto'}`}
+                    className={`group relative flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-md ${isMe ? 'ml-auto' : 'mr-auto'}`}
                   >
+                    {/* Hover Reaction Trigger */}
+                    <div className={`absolute top-0 ${isMe ? '-left-20' : '-right-20'} hidden group-hover:flex items-center gap-1 bg-white dark:bg-[#1F222A] p-1 rounded-full border border-black/10 dark:border-white/10 shadow-lg z-20 transition-all`}>
+                      {EMOJI_REACTIONS.slice(0, 3).map(emoji => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => toggleReactionMessage(msg.id, emoji)}
+                          className="hover:scale-125 transition-transform text-xs p-0.5"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+
                     {/* Message Bubble */}
                     <div
-                      className={`p-3 sm:p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm break-words ${
+                      className={`p-3 sm:p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm break-words relative ${
                         isMe
                           ? 'bg-[#E2FF66] text-[#0D0E12] font-medium rounded-tr-none'
                           : 'bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white rounded-tl-none border border-black/5 dark:border-white/5'
@@ -305,6 +371,49 @@ function MessagesContent() {
                           </Link>
                         </div>
                       )}
+
+                      {/* Embedded Piece Attachment */}
+                      {attachedPiece && (
+                        <div className="mt-2.5 p-2 rounded-xl bg-white dark:bg-[#0D0E12] border border-black/10 dark:border-white/15 text-left text-xs shadow-md flex items-center gap-2.5">
+                          <img 
+                            src={attachedPiece.cutoutImageUrl} 
+                            alt={attachedPiece.title} 
+                            className="w-12 h-12 object-contain bg-black/5 dark:bg-white/5 rounded-lg p-1"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <h5 className="font-bold text-xs truncate text-[#0D0E12] dark:text-white">{attachedPiece.title}</h5>
+                            <span className="text-[10px] text-[#64748B] dark:text-[#8E95A5] capitalize">{attachedPiece.category}</span>
+                            <Link
+                              href={`/remix?preloadPieceId=${attachedPiece.id}`}
+                              className="text-[10px] font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline flex items-center gap-0.5 mt-0.5"
+                            >
+                              <span>Style in Studio</span>
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Active Emoji Reaction Pills */}
+                      {Object.keys(reactions).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5 pt-1 border-t border-black/10 dark:border-white/10">
+                          {Object.entries(reactions).map(([emoji, userIds]) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => toggleReactionMessage(msg.id, emoji)}
+                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 border ${
+                                userIds.includes(currentUser.id)
+                                  ? 'bg-[#E2FF66]/30 border-[#E2FF66] text-[#0D0E12] dark:text-white'
+                                  : 'bg-black/5 dark:bg-white/10 border-transparent text-[#64748B] dark:text-[#8E95A5]'
+                              }`}
+                            >
+                              <span>{emoji}</span>
+                              <span>{userIds.length}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1 mt-1 text-[9px] text-[#94A3B8] px-1">
@@ -315,6 +424,19 @@ function MessagesContent() {
                 );
               })
             )}
+
+            {/* Real-Time Typing Presence Bubble */}
+            {isTargetUserTyping && (
+              <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-[#8E95A5] pl-1 animate-in fade-in">
+                <div className="flex items-center gap-1 bg-[#F4F5F8] dark:bg-[#1F222A] px-3 py-2 rounded-2xl rounded-tl-none border border-black/5 dark:border-white/5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#7B9600] dark:bg-[#E2FF66] animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#7B9600] dark:bg-[#E2FF66] animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#7B9600] dark:bg-[#E2FF66] animate-bounce" />
+                </div>
+                <span className="text-[11px] font-medium text-[#64748B] dark:text-[#8E95A5]">@{activeUser?.username} is typing...</span>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -323,7 +445,7 @@ function MessagesContent() {
             <div className="px-4 py-2 bg-[#E2FF66]/10 border-t border-[#E2FF66]/30 flex items-center justify-between text-xs text-[#0D0E12] dark:text-white flex-shrink-0">
               <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7B9600] dark:text-[#E2FF66]">
                 <Layers className="w-3.5 h-3.5" />
-                Attached: {mixes.find(m => m.id === selectedAttachmentMixId)?.title}
+                Attached Lookboard: {mixes.find(m => m.id === selectedAttachmentMixId)?.title}
               </span>
               <button
                 onClick={() => setSelectedAttachmentMixId(null)}
@@ -339,7 +461,7 @@ function MessagesContent() {
             <button
               type="button"
               onClick={() => setIsAttachModalOpen(true)}
-              className="p-2 sm:p-2.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/10 dark:hover:bg-[#282C37] transition-colors"
+              className="p-2 sm:p-2.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/10 dark:hover:bg-[#282C37] transition-colors flex-shrink-0"
               title="Attach Outfit Lookboard"
             >
               <Paperclip className="w-4 h-4" />
@@ -349,14 +471,18 @@ function MessagesContent() {
               type="text"
               placeholder={`Message @${activeUser?.username}...`}
               value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              className="flex-1 px-4 py-2 sm:py-2.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-xs text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
+              onChange={(e) => {
+                setMessageText(e.target.value);
+                sendTypingStatus(selectedUserId, e.target.value.length > 0);
+              }}
+              onBlur={() => sendTypingStatus(selectedUserId, false)}
+              className="flex-1 px-4 py-2.5 rounded-full bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white text-xs sm:text-sm placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66] transition-colors"
             />
 
             <button
               type="submit"
               disabled={!messageText.trim() && !selectedAttachmentMixId}
-              className="p-2 sm:p-2.5 rounded-full bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] disabled:opacity-40 shadow-sm transition-transform active:scale-95 flex-shrink-0"
+              className="p-2.5 sm:p-3 rounded-full bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] disabled:opacity-40 transition-all shadow-md flex-shrink-0 hover:scale-105"
               title="Send Message"
             >
               <Send className="w-4 h-4 stroke-[2.5]" />
@@ -369,40 +495,30 @@ function MessagesContent() {
 
       {/* Attach Mix Modal */}
       {isAttachModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/15 p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/5">
               <h3 className="text-sm font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
-                Select a Mix to Attach
+                Attach Lookboard from Your Studio
               </h3>
-              <button
-                onClick={() => setIsAttachModalOpen(false)}
-                className="text-xs text-[#64748B] hover:text-black dark:hover:text-white"
-              >
-                Close
+              <button onClick={() => setIsAttachModalOpen(false)} className="p-1 rounded-full text-[#64748B]">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="py-4 space-y-2.5 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
-              {mixes.map(mix => (
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {myMixes.map(mix => (
                 <div
                   key={mix.id}
                   onClick={() => {
                     setSelectedAttachmentMixId(mix.id);
                     setIsAttachModalOpen(false);
                   }}
-                  className="p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 hover:border-[#E2FF66] cursor-pointer transition-all flex items-center justify-between gap-3 group"
+                  className="p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 hover:border-[#E2FF66] cursor-pointer flex items-center justify-between gap-3 transition-all"
                 >
-                  <div className="min-w-0">
-                    <h5 className="text-xs font-bold text-[#0D0E12] dark:text-white group-hover:text-[#7B9600] dark:group-hover:text-[#E2FF66] truncate">
-                      {mix.title}
-                    </h5>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate">
-                      by @{mix.creatorUsername} • {mix.layers.length} pieces
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66]">Attach</span>
+                  <span className="font-semibold text-xs text-[#0D0E12] dark:text-white truncate">{mix.title}</span>
+                  <span className="text-[10px] text-[#7B9600] dark:text-[#E2FF66] font-bold">Select</span>
                 </div>
               ))}
             </div>
@@ -416,7 +532,7 @@ function MessagesContent() {
 
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20 text-xs text-[#64748B]">Loading conversations...</div>}>
+    <Suspense fallback={<div className="p-12 text-center text-xs text-[#64748B]">Loading chat hub...</div>}>
       <MessagesContent />
     </Suspense>
   );

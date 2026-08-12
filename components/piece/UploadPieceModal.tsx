@@ -56,17 +56,23 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
     }
   };
 
-  const processBackgroundRemoval = async (source: string | File | Blob) => {
+  const [showOriginal, setShowOriginal] = useState(false);
+
+  const processBackgroundRemoval = async (source: string | File | Blob, customTolerance?: number) => {
     setIsProcessing(true);
     setCutoutReady(false);
     setProcessProgress(10);
     setProcessStatusText('Starting In-Browser AI Engine...');
 
     try {
-      const cutoutDataUrl = await removeGarmentBackground(source, (pct, status) => {
-        setProcessProgress(pct);
-        setProcessStatusText(status);
-      });
+      const cutoutDataUrl = await removeGarmentBackground(
+        source, 
+        (pct, status) => {
+          setProcessProgress(pct);
+          setProcessStatusText(status);
+        },
+        { tolerance: customTolerance ?? tolerance }
+      );
 
       setImageFile(cutoutDataUrl);
       setCutoutReady(true);
@@ -240,7 +246,7 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                   }}
                 >
                   <img
-                    src={imageFile}
+                    src={showOriginal && rawSourceUrl ? rawSourceUrl : imageFile}
                     alt="Piece preview"
                     className="max-h-full max-w-full object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.45)] transition-all"
                   />
@@ -248,7 +254,7 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                   {cutoutReady && (
                     <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/80 backdrop-blur-md border border-[#E2FF66]/40 text-[#E2FF66] text-[11px] font-bold flex items-center gap-1.5 shadow-sm">
                       <Check className="w-3.5 h-3.5 text-[#E2FF66]" />
-                      Background Removed • Transparent Cutout Ready
+                      {showOriginal ? 'Viewing Original Photo' : 'Background Removed • Transparent Cutout'}
                     </div>
                   )}
 
@@ -256,9 +262,21 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                     {rawSourceUrl && (
                       <button
                         type="button"
-                        onClick={() => processBackgroundRemoval(rawSourceUrl)}
+                        onClick={() => setShowOriginal(o => !o)}
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-bold transition-colors shadow-md ${
+                          showOriginal ? 'bg-[#E2FF66] text-[#0D0E12]' : 'bg-black/70 hover:bg-black text-white'
+                        }`}
+                        title="Toggle Original vs Cutout"
+                      >
+                        {showOriginal ? 'Show Cutout' : 'Show Original'}
+                      </button>
+                    )}
+                    {rawSourceUrl && (
+                      <button
+                        type="button"
+                        onClick={() => processBackgroundRemoval(rawSourceUrl, tolerance)}
                         className="p-2 rounded-full bg-black/70 hover:bg-black text-white text-xs shadow-md transition-colors"
-                        title="Re-run AI cutout"
+                        title="Re-run cutout"
                       >
                         <RefreshCw className="w-4 h-4" />
                       </button>
@@ -278,17 +296,37 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                 </div>
               )}
 
-              {/* Edge Precision Indicator */}
+              {/* Edge Precision & Live Tolerance Slider */}
               {!isProcessing && cutoutReady && (
-                <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 text-xs">
-                  <span className="text-[#64748B] dark:text-[#8E95A5] flex items-center gap-1.5 font-medium">
-                    <Sliders className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
-                    AI Neural Edge Feathering:
-                  </span>
-                  <span className="text-emerald-500 font-bold text-[11px] flex items-center gap-1">
-                    <Check className="w-3 h-3" />
-                    Sub-pixel Alpha Smoothing Active
-                  </span>
+                <div className="p-3.5 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#64748B] dark:text-[#8E95A5] flex items-center gap-1.5 font-semibold">
+                      <Sliders className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
+                      Background Removal Strength:
+                    </span>
+                    <span className="text-[#7B9600] dark:text-[#E2FF66] font-mono font-bold text-xs">
+                      {tolerance}%
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-[#94A3B8]">Gentle</span>
+                    <input
+                      type="range"
+                      min="20"
+                      max="85"
+                      value={tolerance}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setTolerance(val);
+                        if (rawSourceUrl) {
+                          processBackgroundRemoval(rawSourceUrl, val);
+                        }
+                      }}
+                      className="flex-1 accent-[#E2FF66] cursor-pointer h-1.5 bg-black/10 dark:bg-white/10 rounded-lg"
+                    />
+                    <span className="text-[10px] text-[#94A3B8]">Aggressive</span>
+                  </div>
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { Piece, Mix, UserProfile, NotificationItem, Story } from './types';
+import { Piece, Mix, UserProfile, NotificationItem, Story, DirectMessage } from './types';
 
 export const CURRENT_USER: UserProfile = {
   id: 'usr_me',
@@ -593,6 +593,46 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     type: 'follow',
     read: true,
     createdAt: '2026-02-09T12:00:00Z'
+  }
+];
+
+export const INITIAL_DMS: DirectMessage[] = [
+  {
+    id: 'dm_1',
+    senderId: 'usr_1',
+    receiverId: 'usr_me',
+    content: 'Hey Alex! Loved how you paired my archival wool trench with that lime knit in your latest remix.',
+    reactions: { '❤️': ['usr_me'], '🔥': ['usr_1'] },
+    status: 'read',
+    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'dm_2',
+    senderId: 'usr_me',
+    receiverId: 'usr_1',
+    content: 'Thanks Elena! The drape of that coat is insane. Planning to try a tailored monochrome look with it next.',
+    reactions: { '✨': ['usr_1'] },
+    status: 'read',
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'dm_3',
+    senderId: 'usr_1',
+    receiverId: 'usr_me',
+    content: 'Can you check out this flatlay combination? Wanted your opinion on the silhouette.',
+    attachedMixId: 'mix_2',
+    status: 'delivered',
+    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'dm_4',
+    senderId: 'usr_2',
+    receiverId: 'usr_me',
+    content: 'Yo Alex! Restocked the Sambas in the community closet if you want to pull them into your studio board.',
+    attachedPieceId: 'pc_1',
+    reactions: { '👟': ['usr_me'] },
+    status: 'read',
+    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
   }
 ];
 

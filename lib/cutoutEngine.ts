@@ -2,7 +2,7 @@
 
 /**
  * FitMix In-Browser AI Cutout Engine (Zero Tokens, 100% Local & Free)
- * Uses WebAssembly Neural Network segmentation with Canvas Alpha-feathering fallback.
+ * Uses Neural Network segmentation with high-precision Flood-Fill Edge Chroma fallback.
  */
 
 export interface CutoutProgressCallback {
@@ -11,15 +11,18 @@ export interface CutoutProgressCallback {
 
 export async function removeGarmentBackground(
   imageSource: string | File | Blob,
-  onProgress?: CutoutProgressCallback
+  onProgress?: CutoutProgressCallback,
+  options?: { tolerance?: number }
 ): Promise<string> {
+  const tolerance = options?.tolerance ?? 45;
+
   try {
     if (onProgress) onProgress(15, 'Loading In-Browser AI Model...');
 
-    // Dynamically import @imgly/background-removal so it only runs on the client
+    // Dynamically import @imgly/background-removal so it only runs in the browser client
     const { removeBackground } = await import('@imgly/background-removal');
 
-    if (onProgress) onProgress(35, 'Analyzing garment contours & fabric textures...');
+    if (onProgress) onProgress(35, 'Analyzing garment contours & textures...');
 
     const blob = await removeBackground(imageSource, {
       progress: (key: string, current: number, total: number) => {
@@ -28,7 +31,7 @@ export async function removeGarmentBackground(
           onProgress(pct, `Isolating garment (${pct}%)...`);
         }
       },
-      model: 'isnet_quint8', // fast quantized neural model for mobile and desktop
+      model: 'isnet_quint8',
       output: {
         format: 'image/png',
         quality: 0.95
@@ -41,7 +44,7 @@ export async function removeGarmentBackground(
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (onProgress) onProgress(100, 'Cutout ready!');
+        if (onProgress) onProgress(100, 'Transparent cutout ready!');
         resolve(reader.result as string);
       };
       reader.onerror = reject;
@@ -49,18 +52,19 @@ export async function removeGarmentBackground(
     });
 
   } catch (error) {
-    console.warn('In-Browser Neural model notice, falling back to smart Canvas Edge Segmentation:', error);
-    if (onProgress) onProgress(50, 'Refining contours with Canvas Segmentation...');
-    return await fallbackCanvasCutout(imageSource, onProgress);
+    console.warn('Neural model notice, using High-Precision Flood-Fill Edge Cutout:', error);
+    if (onProgress) onProgress(50, 'Isolating garment from background...');
+    return await fallbackFloodFillCutout(imageSource, tolerance, onProgress);
   }
 }
 
 /**
- * Intelligent Canvas-based fallback edge & chroma cutout algorithm
- * Used when WebAssembly isn't available or for ultra-fast local isolation.
+ * High-Precision Flood-Fill & Perimeter Chroma Cutout Algorithm
+ * Removes outer background cleanly while protecting white/light details inside the garment.
  */
-async function fallbackCanvasCutout(
+export async function fallbackFloodFillCutout(
   imageSource: string | File | Blob,
+  customTolerance: number = 45,
   onProgress?: CutoutProgressCallback
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -75,7 +79,6 @@ async function fallbackCanvasCutout(
         return;
       }
 
-      // Max dimension 1200 for clean performance
       const maxDim = 1200;
       let { width, height } = img;
       if (width > maxDim || height > maxDim) {
@@ -94,61 +97,102 @@ async function fallbackCanvasCutout(
 
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
+      const totalPixels = width * height;
 
-      // Sample background color from corners
-      const cornerPixels = [
-        [0, 0],
-        [width - 1, 0],
-        [0, height - 1],
-        [width - 1, height - 1],
-        [Math.floor(width / 2), 0],
-        [0, Math.floor(height / 2)],
-        [width - 1, Math.floor(height / 2)],
-      ];
+      // Sample perimeter pixels to establish ambient background colors
+      const perimeterColors: [number, number, number][] = [];
+      const sampleStep = Math.max(1, Math.floor(Math.min(width, height) / 20));
 
-      let bgR = 0, bgG = 0, bgB = 0;
-      cornerPixels.forEach(([x, y]) => {
-        const idx = (y * width + x) * 4;
-        bgR += data[idx];
-        bgG += data[idx + 1];
-        bgB += data[idx + 2];
+      for (let x = 0; x < width; x += sampleStep) {
+        // Top and bottom borders
+        const topIdx = x * 4;
+        const btmIdx = ((height - 1) * width + x) * 4;
+        perimeterColors.push([data[topIdx], data[topIdx + 1], data[topIdx + 2]]);
+        perimeterColors.push([data[btmIdx], data[btmIdx + 1], data[btmIdx + 2]]);
+      }
+      for (let y = 0; y < height; y += sampleStep) {
+        // Left and right borders
+        const leftIdx = (y * width) * 4;
+        const rightIdx = (y * width + (width - 1)) * 4;
+        perimeterColors.push([data[leftIdx], data[leftIdx + 1], data[leftIdx + 2]]);
+        perimeterColors.push([data[rightIdx], data[rightIdx + 1], data[rightIdx + 2]]);
+      }
+
+      // Calculate average background color from perimeter
+      let avgR = 0, avgG = 0, avgB = 0;
+      perimeterColors.forEach(([r, g, b]) => {
+        avgR += r;
+        avgG += g;
+        avgB += b;
       });
-      bgR /= cornerPixels.length;
-      bgG /= cornerPixels.length;
-      bgB /= cornerPixels.length;
+      avgR /= perimeterColors.length;
+      avgG /= perimeterColors.length;
+      avgB /= perimeterColors.length;
 
-      // Alpha mask based on distance to background color
-      const threshold = 40;
-      const featherRange = 25;
+      // BFS Flood-Fill from all 4 borders inward
+      const visited = new Uint8Array(totalPixels);
+      const queue: number[] = [];
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+      // Seed all border pixels
+      for (let x = 0; x < width; x++) {
+        queue.push(x); // top row
+        queue.push((height - 1) * width + x); // bottom row
+      }
+      for (let y = 1; y < height - 1; y++) {
+        queue.push(y * width); // left column
+        queue.push(y * width + width - 1); // right column
+      }
 
-        // Euclidean color distance
+      const tolerance = customTolerance;
+      const featherRange = 20;
+
+      let head = 0;
+      while (head < queue.length) {
+        const pIdx = queue[head++];
+        if (visited[pIdx]) continue;
+        visited[pIdx] = 1;
+
+        const byteIdx = pIdx * 4;
+        const r = data[byteIdx];
+        const g = data[byteIdx + 1];
+        const b = data[byteIdx + 2];
+
+        // Euclidean distance from background color
         const dist = Math.sqrt(
-          Math.pow(r - bgR, 2) +
-          Math.pow(g - bgG, 2) +
-          Math.pow(b - bgB, 2)
+          Math.pow(r - avgR, 2) +
+          Math.pow(g - avgG, 2) +
+          Math.pow(b - avgB, 2)
         );
 
-        if (dist < threshold) {
-          data[i + 3] = 0; // Transparent
-        } else if (dist < threshold + featherRange) {
+        // Also check if near white/light grey studio backdrop (r,g,b > 210)
+        const isNearWhiteBackdrop = (r > 215 && g > 215 && b > 215) && (Math.abs(r - g) < 25 && Math.abs(g - b) < 25);
+
+        if (dist < tolerance || isNearWhiteBackdrop) {
+          // Transparent
+          data[byteIdx + 3] = 0;
+
+          // Propagate to 4-connected neighbors
+          const px = pIdx % width;
+          const py = Math.floor(pIdx / width);
+
+          if (px > 0 && !visited[pIdx - 1]) queue.push(pIdx - 1);
+          if (px < width - 1 && !visited[pIdx + 1]) queue.push(pIdx + 1);
+          if (py > 0 && !visited[pIdx - width]) queue.push(pIdx - width);
+          if (py < height - 1 && !visited[pIdx + width]) queue.push(pIdx + width);
+        } else if (dist < tolerance + featherRange) {
           // Feathered smooth edge
-          data[i + 3] = Math.round(((dist - threshold) / featherRange) * 255);
+          data[byteIdx + 3] = Math.round(((dist - tolerance) / featherRange) * 255);
         }
       }
 
       ctx.putImageData(imageData, 0, 0);
-      if (onProgress) onProgress(100, 'Cutout ready!');
+      if (onProgress) onProgress(100, 'Transparent cutout ready!');
       resolve(canvas.toDataURL('image/png'));
     };
 
     img.onerror = () => {
       if (typeof imageSource === 'string') resolve(imageSource);
-      else reject(new Error('Failed to load image for cutout.'));
+      else reject(new Error('Failed to load image.'));
     };
 
     if (typeof imageSource === 'string') {

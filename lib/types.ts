@@ -115,6 +115,8 @@ export interface DirectMessage {
   content: string;
   attachedMixId?: string;
   attachedPieceId?: string;
+  reactions?: Record<string, string[]>; // e.g. { '❤️': ['usr_1'], '🔥': ['usr_2'] }
+  status?: 'sent' | 'delivered' | 'read';
   createdAt: string;
 }
 

@@ -55,8 +55,16 @@ export default function LoggedInDashboard() {
 
   // Active Story Groups (auto-filtered for 24h expiration)
   const storyGroups = getUserStoryGroups();
-  const myStoryGroup = storyGroups.find(g => g.userId === currentUser.id);
-  const otherStoryGroups = storyGroups.filter(g => g.userId !== currentUser.id);
+  const myStoryGroup = storyGroups.find(
+    g => g.userId === currentUser.id || 
+         g.username.toLowerCase() === currentUser.username.toLowerCase() ||
+         (currentUser.username.toLowerCase() === 'alex_creator' && g.userId === 'usr_me')
+  );
+  const otherStoryGroups = storyGroups.filter(
+    g => g.userId !== currentUser.id && 
+         g.username.toLowerCase() !== currentUser.username.toLowerCase() &&
+         !(currentUser.username.toLowerCase() === 'alex_creator' && g.userId === 'usr_me')
+  );
 
   // User pieces count
   const myPieces = getPiecesByOwner(currentUser.username);

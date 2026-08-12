@@ -20,7 +20,8 @@ import {
   INITIAL_PIECES, 
   INITIAL_MIXES, 
   INITIAL_NOTIFICATIONS,
-  INITIAL_STORIES
+  INITIAL_STORIES,
+  INITIAL_DMS
 } from './seedData';
 import { createMentionNotifications } from './mentionUtils';
 import { supabase } from './supabase';
@@ -110,6 +111,7 @@ interface StoreContextType {
   toggleFollowUser: (userId: string) => void;
   sendMessage: (receiverId: string, content: string, attachedMixId?: string, attachedPieceId?: string) => DirectMessage;
   getMessagesBetween: (userId1: string, userId2: string) => DirectMessage[];
+  toggleReactionMessage: (messageId: string, emoji: string) => void;
   markNotificationsAsRead: () => void;
   unreadNotificationsCount: number;
 }
@@ -137,7 +139,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [mixes, setMixes] = useState<Mix[]>(INITIAL_MIXES);
   const [users, setUsers] = useState<UserProfile[]>(INITIAL_USERS);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
-  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(INITIAL_DMS);
   const [comments, setComments] = useState<Comment[]>(INITIAL_COMMENTS);
   const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -462,18 +464,53 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   const sendMessage = (receiverId: string, content: string, attachedMixId?: string, attachedPieceId?: string): DirectMessage => {
     const newMsg: DirectMessage = {
-      id: `dm_${Date.now()}`,
+      id: `dm_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       senderId: currentUser.id,
       receiverId,
       content,
       attachedMixId,
       attachedPieceId,
+      reactions: {},
+      status: 'sent',
       createdAt: new Date().toISOString()
     };
     const updatedDms = [...directMessages, newMsg];
     setDirectMessages(updatedDms);
     persist(STORAGE_KEYS.DMS, updatedDms);
+
+    // Broadcast in real-time over Supabase Realtime Channel
+    try {
+      const channel = supabase.channel('fitmix_community_chat');
+      channel.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: newMsg
+      });
+    } catch (err) {
+      console.warn('Realtime chat broadcast notice:', err);
+    }
+
     return newMsg;
+  };
+
+  const toggleReactionMessage = (messageId: string, emoji: string) => {
+    const updatedDms = directMessages.map(d => {
+      if (d.id === messageId) {
+        const reactions = { ...(d.reactions || {}) };
+        const currentReactors = reactions[emoji] || [];
+        const hasReacted = currentReactors.includes(currentUser.id);
+        if (hasReacted) {
+          reactions[emoji] = currentReactors.filter(id => id !== currentUser.id);
+          if (reactions[emoji].length === 0) delete reactions[emoji];
+        } else {
+          reactions[emoji] = [...currentReactors, currentUser.id];
+        }
+        return { ...d, reactions };
+      }
+      return d;
+    });
+    setDirectMessages(updatedDms);
+    persist(STORAGE_KEYS.DMS, updatedDms);
   };
 
   const getMessagesBetween = (userId1: string, userId2: string) => {
@@ -666,6 +703,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       toggleFollowUser,
       sendMessage,
       getMessagesBetween,
+      toggleReactionMessage,
       markNotificationsAsRead,
       unreadNotificationsCount
     }}>
