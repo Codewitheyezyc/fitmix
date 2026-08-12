@@ -22,6 +22,7 @@ import {
   INITIAL_NOTIFICATIONS,
   INITIAL_STORIES
 } from './seedData';
+import { createMentionNotifications } from './mentionUtils';
 import { supabase } from './supabase';
 
 const INITIAL_COMMENTS: Comment[] = [
@@ -305,6 +306,22 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedPieces = [newPiece, ...pieces];
     setPieces(updatedPieces);
     persist(STORAGE_KEYS.PIECES, updatedPieces);
+
+    // Dispatch mention notifications if any @username in piece description
+    const mentionNotifs = createMentionNotifications({
+      text: `${newPiece.title} ${newPiece.description || ''} ${newPiece.stylingNotes || ''}`,
+      sender: currentUser,
+      users,
+      contextType: 'piece',
+      targetPieceId: newPiece.id,
+      targetTitle: newPiece.title
+    });
+    if (mentionNotifs.length > 0) {
+      const updatedAllNotifs = [...mentionNotifs, ...notifications];
+      setNotifications(updatedAllNotifs);
+      persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+    }
+
     return newPiece;
   };
 
@@ -372,8 +389,18 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    // Mention notifications in mix
+    const mentionNotifs = createMentionNotifications({
+      text: `${newMix.title} ${newMix.description || ''} ${newMix.whyItWorks || ''}`,
+      sender: currentUser,
+      users,
+      contextType: 'mix',
+      targetMixId: newMix.id,
+      targetTitle: newMix.title
+    });
+
     const updatedMixes = [newMix, ...mixes];
-    const updatedAllNotifs = [...newNotifs, ...notifications];
+    const updatedAllNotifs = [...newNotifs, ...mentionNotifs, ...notifications];
 
     setPieces(updatedPieces);
     setMixes(updatedMixes);
@@ -480,6 +507,21 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setMixes(updatedMixes);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
 
+    // Dispatch mention notifications in comment
+    const mentionNotifs = createMentionNotifications({
+      text: content,
+      sender: currentUser,
+      users,
+      contextType: 'comment',
+      targetMixId: mixId,
+      targetTitle: mixes.find(m => m.id === mixId)?.title || 'Outfit Mix'
+    });
+    if (mentionNotifs.length > 0) {
+      const updatedAllNotifs = [...mentionNotifs, ...notifications];
+      setNotifications(updatedAllNotifs);
+      persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+    }
+
     return newComment;
   };
 
@@ -509,6 +551,23 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updated = [newStory, ...stories];
     setStories(updated);
     persist(STORAGE_KEYS.STORIES, updated);
+
+    // Dispatch mention notifications in story caption
+    const mentionNotifs = createMentionNotifications({
+      text: newStory.caption || '',
+      sender: currentUser,
+      users,
+      contextType: 'story',
+      targetStoryId: newStory.id,
+      targetPieceId: newStory.pieceId,
+      targetTitle: newStory.title
+    });
+    if (mentionNotifs.length > 0) {
+      const updatedAllNotifs = [...mentionNotifs, ...notifications];
+      setNotifications(updatedAllNotifs);
+      persist(STORAGE_KEYS.NOTIFICATIONS, updatedAllNotifs);
+    }
+
     return newStory;
   };
 

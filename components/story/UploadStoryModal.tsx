@@ -20,7 +20,7 @@ interface UploadStoryModalProps {
 }
 
 export default function UploadStoryModal({ isOpen, onClose, onSuccess }: UploadStoryModalProps) {
-  const { addStory, currentUser, pieces } = useStore();
+  const { addStory, currentUser, pieces, users } = useStore();
   const [imageFile, setImageFile] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [selectedPieceId, setSelectedPieceId] = useState<string>('');
@@ -43,6 +43,10 @@ export default function UploadStoryModal({ isOpen, onClose, onSuccess }: UploadS
   const handlePresetSelect = (url: string, defaultCaption: string) => {
     setImageFile(url);
     setCaption(defaultCaption);
+  };
+
+  const handleMentionInsert = (username: string) => {
+    setCaption(prev => prev ? `${prev} @${username} ` : `@${username} `);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -176,15 +180,31 @@ export default function UploadStoryModal({ isOpen, onClose, onSuccess }: UploadS
           {/* Story Caption */}
           <div>
             <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
-              Caption (Optional)
+              Caption (Optional - mention stylists with @)
             </label>
             <input
               type="text"
-              placeholder="Add a thought or styling note..."
+              placeholder="e.g. Vintage styling inspired by @elena_v..."
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66]"
             />
+            {/* Stylist Quick Mention Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 text-[11px]">
+              <span className="text-[#64748B] dark:text-[#8E95A5] text-[10px] font-semibold flex-shrink-0">
+                Mention Stylist:
+              </span>
+              {users.filter(u => u.id !== currentUser.id).map(u => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => handleMentionInsert(u.username)}
+                  className="px-2 py-0.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] text-[10px] font-medium flex-shrink-0"
+                >
+                  @{u.username}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Tag a Garment from Closet */}

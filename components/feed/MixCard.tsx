@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Mix, Piece } from '@/lib/types';
+import { Mix, Piece, Comment } from '@/lib/types';
+import { renderMentionText } from '@/lib/mentionUtils';
 import { useStore } from '@/lib/store';
 import { 
   Heart, 
@@ -203,7 +204,7 @@ export default function MixCard({ mix }: MixCardProps) {
             </h3>
             {mix.description && (
               <p className="text-xs sm:text-sm text-[#4B5563] dark:text-[#B0B7C6] mt-1 leading-relaxed">
-                {mix.description}
+                {renderMentionText(mix.description)}
               </p>
             )}
           </div>
@@ -222,9 +223,9 @@ export default function MixCard({ mix }: MixCardProps) {
                 {showWhyItWorks ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
               {showWhyItWorks && (
-                <p className="text-xs text-[#4B5563] dark:text-[#B0B7C6] mt-2 pt-2 border-t border-black/5 dark:border-white/5 leading-relaxed italic">
-                  &ldquo;{mix.whyItWorks}&rdquo;
-                </p>
+                <div className="text-xs text-[#4B5563] dark:text-[#B0B7C6] mt-2 pt-2 border-t border-black/5 dark:border-white/5 leading-relaxed italic">
+                  &ldquo;{renderMentionText(mix.whyItWorks)}&rdquo;
+                </div>
               )}
             </div>
           )}

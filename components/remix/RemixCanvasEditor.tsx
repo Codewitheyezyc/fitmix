@@ -983,15 +983,31 @@ export default function RemixCanvasEditor() {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
-                  Styling Notes / Description
+                  Styling Notes / Description (mention creators with @)
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="What makes this combination work? Share your styling thought process."
+                  placeholder="e.g. Layered with @elena_v's trench for contrast styling..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
                 />
+                {/* Mention Stylist Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 text-[11px]">
+                  <span className="text-[#64748B] dark:text-[#8E95A5] text-[10px] font-semibold flex-shrink-0">
+                    Mention:
+                  </span>
+                  {users.filter(u => u.id !== currentUser.id).slice(0, 5).map(u => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setDescription(prev => prev ? `${prev} @${u.username} ` : `@${u.username} `)}
+                      className="px-2 py-0.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] text-[10px] font-medium flex-shrink-0"
+                    >
+                      @{u.username}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Technique Tags with Custom Input */}

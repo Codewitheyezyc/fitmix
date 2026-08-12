@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Piece } from '@/lib/types';
 import { useStore } from '@/lib/store';
+import { renderMentionText } from '@/lib/mentionUtils';
 import { 
   X, 
   Repeat, 
@@ -13,9 +14,9 @@ import {
   Info, 
   Heart, 
   Share2, 
-  Check,
-  Tag,
-  Palette
+  Check, 
+  Tag, 
+  Palette 
 } from 'lucide-react';
 
 interface PieceDetailModalProps {
@@ -126,7 +127,7 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
 
             {piece.description && (
               <p className="text-xs sm:text-sm text-[#4B5563] dark:text-[#B0B7C6] leading-relaxed">
-                {piece.description}
+                {renderMentionText(piece.description)}
               </p>
             )}
 
@@ -137,9 +138,9 @@ export default function PieceDetailModal({ piece, onClose }: PieceDetailModalPro
                   <Sparkles className="w-3.5 h-3.5" />
                   Styling Recommendation
                 </span>
-                <p className="text-xs text-[#4B5563] dark:text-[#B0B7C6] leading-relaxed">
-                  {piece.stylingNotes}
-                </p>
+                <div className="text-xs text-[#4B5563] dark:text-[#B0B7C6] leading-relaxed">
+                  {renderMentionText(piece.stylingNotes)}
+                </div>
               </div>
             )}
           </div>

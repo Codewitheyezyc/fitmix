@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { UserStoryGroup, Story } from '@/lib/types';
+import { renderMentionText } from '@/lib/mentionUtils';
 import { 
   X, 
   ChevronLeft, 
@@ -369,9 +370,9 @@ export default function StoryViewerModal({
           {/* Caption Overlay */}
           {currentStory.caption && (
             <div className="pointer-events-auto">
-              <p className="text-xs sm:text-sm text-white font-medium drop-shadow-md bg-black/40 backdrop-blur-sm p-2.5 rounded-xl border border-white/10 max-w-full">
-                {currentStory.caption}
-              </p>
+              <div className="text-xs sm:text-sm text-white font-medium drop-shadow-md bg-black/40 backdrop-blur-sm p-2.5 rounded-xl border border-white/10 max-w-full leading-relaxed">
+                {renderMentionText(currentStory.caption)}
+              </div>
             </div>
           )}
 

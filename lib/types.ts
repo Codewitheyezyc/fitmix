@@ -97,9 +97,10 @@ export interface NotificationItem {
   actorId: string;
   actorUsername: string;
   actorAvatar: string;
-  type: 'remix' | 'like' | 'follow' | 'comment' | 'dm';
+  type: 'remix' | 'like' | 'follow' | 'comment' | 'dm' | 'mention';
   targetMixId?: string;
   targetPieceId?: string;
+  targetStoryId?: string;
   pieceTitle?: string;
   mixTitle?: string;
   message?: string;

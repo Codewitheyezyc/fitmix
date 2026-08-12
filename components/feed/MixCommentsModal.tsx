@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mix } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { X, Send, Heart, MessageSquare, Sparkles } from 'lucide-react';
+import { renderMentionText } from '@/lib/mentionUtils';
+import { X, Send, Heart, MessageSquare, Sparkles, AtSign } from 'lucide-react';
 
 interface MixCommentsModalProps {
   mix: Mix;
@@ -12,7 +13,7 @@ interface MixCommentsModalProps {
 }
 
 export default function MixCommentsModal({ mix, onClose }: MixCommentsModalProps) {
-  const { currentUser, addComment, getCommentsByMix } = useStore();
+  const { currentUser, addComment, getCommentsByMix, users } = useStore();
   const [commentText, setCommentText] = useState('');
   const [likedComments, setLikedComments] = useState<Record<string, boolean>>({});
 
@@ -24,6 +25,10 @@ export default function MixCommentsModal({ mix, onClose }: MixCommentsModalProps
 
     addComment(mix.id, commentText);
     setCommentText('');
+  };
+
+  const handleMentionInsert = (username: string) => {
+    setCommentText(prev => prev ? `${prev} @${username} ` : `@${username} `);
   };
 
   const toggleLikeComment = (commentId: string) => {
@@ -84,9 +89,9 @@ export default function MixCommentsModal({ mix, onClose }: MixCommentsModalProps
                         {new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-xs text-[#4B5563] dark:text-[#D1D5DB] leading-relaxed break-words">
-                      {c.content}
-                    </p>
+                    <div className="text-xs text-[#4B5563] dark:text-[#D1D5DB] leading-relaxed break-words">
+                      {renderMentionText(c.content)}
+                    </div>
                   </div>
 
                   <button
@@ -103,8 +108,25 @@ export default function MixCommentsModal({ mix, onClose }: MixCommentsModalProps
           )}
         </div>
 
+        {/* Quick Mention Suggestions */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-[11px]">
+          <span className="text-[#64748B] dark:text-[#8E95A5] flex items-center gap-1 font-semibold">
+            <AtSign className="w-3 h-3 text-[#7B9600] dark:text-[#E2FF66]" /> Mention:
+          </span>
+          {users.filter(u => u.id !== currentUser.id).slice(0, 4).map(u => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => handleMentionInsert(u.username)}
+              className="px-2 py-0.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] text-[10px] font-medium"
+            >
+              @{u.username}
+            </button>
+          ))}
+        </div>
+
         {/* Comment Input Form */}
-        <form onSubmit={handleSubmit} className="pt-3 border-t border-black/10 dark:border-white/10 flex items-center gap-2.5">
+        <form onSubmit={handleSubmit} className="pt-2 border-t border-black/10 dark:border-white/10 flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full overflow-hidden border border-black/10 dark:border-white/15 flex-shrink-0">
             <img src={currentUser.avatarUrl} alt={currentUser.displayName} className="w-full h-full object-cover" />
           </div>
@@ -112,7 +134,7 @@ export default function MixCommentsModal({ mix, onClose }: MixCommentsModalProps
           <input
             type="text"
             required
-            placeholder="Add a styling tip or comment..."
+            placeholder="Add a styling tip (type @ to mention a stylist)..."
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             className="flex-1 px-4 py-2.5 rounded-full bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white text-xs placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66] transition-all"

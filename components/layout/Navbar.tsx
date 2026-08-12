@@ -161,13 +161,17 @@ export default function Navbar() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-[#0D0E12] dark:text-[#F8F9FA] leading-tight">
                                   <span className="font-semibold text-[#7B9600] dark:text-[#E2FF66]">@{n.actorUsername}</span>{' '}
+                                  {n.type === 'mention' && (n.message || `mentioned you in a look!`)}
                                   {n.type === 'remix' && `remixed your ${n.pieceTitle || 'piece'} into a new look!`}
                                   {n.type === 'like' && `liked your mix "${n.mixTitle}"`}
                                   {n.type === 'follow' && `started following your closet`}
+                                  {n.type === 'comment' && `commented on your mix "${n.mixTitle}"`}
                                 </p>
                                 <span className="text-[10px] text-[#94A3B8] dark:text-[#6B7280] block mt-1">Just now</span>
                               </div>
-                              {n.type === 'remix' ? (
+                              {n.type === 'mention' ? (
+                                <Sparkles className="w-3.5 h-3.5 text-[#E2FF66] flex-shrink-0" />
+                              ) : n.type === 'remix' ? (
                                 <Repeat className="w-3.5 h-3.5 text-[#E2FF66] flex-shrink-0" />
                               ) : (
                                 <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />

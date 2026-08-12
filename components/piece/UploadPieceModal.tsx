@@ -24,7 +24,7 @@ interface UploadPieceModalProps {
 }
 
 export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModalProps) {
-  const { addPiece } = useStore();
+  const { addPiece, users, currentUser } = useStore();
   
   const [imageFile, setImageFile] = useState<string | null>(null);
   const [rawSourceUrl, setRawSourceUrl] = useState<string | null>(null);
@@ -345,15 +345,30 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
-                Styling Notes (Optional)
+                Styling Notes (Optional - mention stylists with @)
               </label>
               <input
                 type="text"
-                placeholder="e.g. Looks best when paired with wide pleated trousers..."
+                placeholder="e.g. Looks great with @elena_v's wool trench coat..."
                 value={stylingNotes}
                 onChange={(e) => setStylingNotes(e.target.value)}
                 className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
               />
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 text-[11px]">
+                <span className="text-[#64748B] dark:text-[#8E95A5] text-[10px] font-semibold flex-shrink-0">
+                  Mention Stylist:
+                </span>
+                {users.filter(u => u.id !== currentUser.id).slice(0, 5).map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => setStylingNotes(prev => prev ? `${prev} @${u.username} ` : `@${u.username} `)}
+                    className="px-2 py-0.5 rounded-full bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] text-[10px] font-medium flex-shrink-0"
+                  >
+                    @{u.username}
+                  </button>
+                ))}
+              </div>
             </div>
 
           </div>
