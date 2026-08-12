@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useStore } from '@/lib/store';
 import { CategoryType } from '@/lib/types';
 import { removeGarmentBackground } from '@/lib/cutoutEngine';
+import { uploadImageToStorage } from '@/lib/storageUpload';
 import { 
   X, 
   Upload, 
@@ -94,24 +95,38 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
     processBackgroundRemoval(presetUrl);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!imageFile || !title) return;
 
-    const newPiece = addPiece({
-      title,
-      category,
-      cutoutImageUrl: imageFile,
-      brandName: brandName || undefined,
-      description: description || undefined,
-      stylingNotes: stylingNotes || undefined,
-      dominantColors,
-    });
+    setIsSaving(true);
+    try {
+      let finalImageUrl = imageFile;
+      if (imageFile.startsWith('data:')) {
+        finalImageUrl = await uploadImageToStorage(imageFile, 'pieces', `piece_${title.toLowerCase().replace(/\s+/g, '_')}`);
+      }
 
-    if (onSuccess) {
-      onSuccess(newPiece.id);
+      const newPiece = addPiece({
+        title,
+        category,
+        cutoutImageUrl: finalImageUrl,
+        brandName: brandName || undefined,
+        description: description || undefined,
+        stylingNotes: stylingNotes || undefined,
+        dominantColors,
+      });
+
+      if (onSuccess) {
+        onSuccess(newPiece.id);
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error saving piece:', err);
+    } finally {
+      setIsSaving(false);
     }
-    onClose();
   };
 
   return (
@@ -422,10 +437,17 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
             </button>
             <button
               type="submit"
-              disabled={!imageFile || !title || isProcessing}
-              className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(226,255,102,0.3)] hover:scale-102 active:scale-95"
+              disabled={!imageFile || !title || isProcessing || isSaving}
+              className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(226,255,102,0.3)] hover:scale-102 active:scale-95 flex items-center gap-1.5"
             >
-              Publish to My Closet
+              {isSaving ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Syncing to Cloud...</span>
+                </>
+              ) : (
+                <span>Publish to My Closet</span>
+              )}
             </button>
           </div>
 

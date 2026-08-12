@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Piece, Mix, Story, NotificationItem, UserProfile, DirectMessage } from '@/lib/types';
+import { uploadImageToStorage } from '@/lib/storageUpload';
 
 /**
  * FitMix Cloud Synchronization Engine
@@ -119,26 +120,32 @@ export async function autoMigrateLocalToCloud(
     );
 
     if (userPieces.length > 0) {
-      const piecePayloads = userPieces.map(piece => ({
-        id: piece.id,
-        owner_id: currentUser.id || piece.ownerId,
-        owner_username: currentUser.username || piece.ownerUsername,
-        owner_name: currentUser.displayName || piece.ownerName,
-        owner_avatar: currentUser.avatarUrl || piece.ownerAvatar,
-        title: piece.title,
-        category: piece.category,
-        cutout_image_url: piece.cutoutImageUrl,
-        original_image_url: piece.originalImageUrl,
-        brand_name: piece.brandName,
-        dominant_colors: piece.dominantColors,
-        description: piece.description,
-        styling_notes: piece.stylingNotes,
-        remix_count: piece.remixCount || 0,
-        likes_count: piece.likesCount || 0,
-        created_at: piece.createdAt || new Date().toISOString()
-      }));
+      for (const piece of userPieces) {
+        let finalCutoutUrl = piece.cutoutImageUrl;
+        if (finalCutoutUrl.startsWith('data:')) {
+          finalCutoutUrl = await uploadImageToStorage(finalCutoutUrl, 'pieces', `piece_${piece.id}`);
+        }
 
-      await supabase.from('pieces').upsert(piecePayloads, { onConflict: 'id' });
+        await supabase.from('pieces').upsert({
+          id: piece.id,
+          owner_id: currentUser.id || piece.ownerId,
+          owner_username: currentUser.username || piece.ownerUsername,
+          owner_name: currentUser.displayName || piece.ownerName,
+          owner_avatar: currentUser.avatarUrl || piece.ownerAvatar,
+          title: piece.title,
+          category: piece.category,
+          cutout_image_url: finalCutoutUrl,
+          original_image_url: piece.originalImageUrl,
+          brand_name: piece.brandName,
+          dominantColors: piece.dominantColors,
+          dominant_colors: piece.dominantColors,
+          description: piece.description,
+          styling_notes: piece.stylingNotes,
+          remix_count: piece.remixCount || 0,
+          likes_count: piece.likesCount || 0,
+          created_at: piece.createdAt || new Date().toISOString()
+        }, { onConflict: 'id' });
+      }
     }
 
     // 2. Identify user-created custom mixes
@@ -149,29 +156,29 @@ export async function autoMigrateLocalToCloud(
     );
 
     if (userMixes.length > 0) {
-      const mixPayloads = userMixes.map(mix => ({
-        id: mix.id,
-        creator_id: currentUser.id || mix.creatorId,
-        creator_username: currentUser.username || mix.creatorUsername,
-        creator_name: currentUser.displayName || mix.creatorName,
-        creator_avatar: currentUser.avatarUrl || mix.creatorAvatar,
-        title: mix.title,
-        description: mix.description,
-        rendered_image_url: mix.renderedImageUrl,
-        canvas_background: mix.canvasBackground,
-        layers_json: mix.layers,
-        technique_tags: mix.techniqueTags,
-        whyItWorks: mix.whyItWorks,
-        likes_count: mix.likesCount || 0,
-        comments_count: mix.commentsCount || 0,
-        remix_count: mix.remixCount || 0,
-        created_at: mix.createdAt || new Date().toISOString(),
-        remix_chain_parent_id: mix.remixChainParentId,
-        parent_mix_title: mix.parentMixTitle,
-        parent_mix_creator_username: mix.parentMixCreatorUsername
-      }));
-
-      await supabase.from('mixes').upsert(mixPayloads, { onConflict: 'id' });
+      for (const mix of userMixes) {
+        await supabase.from('mixes').upsert({
+          id: mix.id,
+          creator_id: currentUser.id || mix.creatorId,
+          creator_username: currentUser.username || mix.creatorUsername,
+          creator_name: currentUser.displayName || mix.creatorName,
+          creator_avatar: currentUser.avatarUrl || mix.creatorAvatar,
+          title: mix.title,
+          description: mix.description,
+          rendered_image_url: mix.renderedImageUrl,
+          canvas_background: mix.canvasBackground,
+          layers_json: mix.layers,
+          technique_tags: mix.techniqueTags,
+          why_it_works: mix.whyItWorks,
+          likes_count: mix.likesCount || 0,
+          comments_count: mix.commentsCount || 0,
+          remix_count: mix.remixCount || 0,
+          created_at: mix.createdAt || new Date().toISOString(),
+          remix_chain_parent_id: mix.remixChainParentId,
+          parent_mix_title: mix.parentMixTitle,
+          parent_mix_creator_username: mix.parentMixCreatorUsername
+        }, { onConflict: 'id' });
+      }
     }
 
     // 3. Identify user-created custom stories
@@ -181,19 +188,24 @@ export async function autoMigrateLocalToCloud(
     );
 
     if (userStories.length > 0) {
-      const storyPayloads = userStories.map(story => ({
-        id: story.id,
-        user_id: currentUser.id || story.userId,
-        username: currentUser.username || story.username,
-        user_name: currentUser.displayName || story.displayName,
-        user_avatar: currentUser.avatarUrl || story.avatarUrl,
-        media_url: story.imageUrl,
-        caption: story.caption,
-        created_at: story.createdAt || new Date().toISOString(),
-        likes_count: story.likesCount || 0
-      }));
+      for (const story of userStories) {
+        let finalMediaUrl = story.imageUrl;
+        if (finalMediaUrl.startsWith('data:')) {
+          finalMediaUrl = await uploadImageToStorage(finalMediaUrl, 'mixes', `story_${story.id}`);
+        }
 
-      await supabase.from('stories').upsert(storyPayloads, { onConflict: 'id' });
+        await supabase.from('stories').upsert({
+          id: story.id,
+          user_id: currentUser.id || story.userId,
+          username: currentUser.username || story.username,
+          user_name: currentUser.displayName || story.displayName,
+          user_avatar: currentUser.avatarUrl || story.avatarUrl,
+          media_url: finalMediaUrl,
+          caption: story.caption,
+          created_at: story.createdAt || new Date().toISOString(),
+          likes_count: story.likesCount || 0
+        }, { onConflict: 'id' });
+      }
     }
 
     // 4. Update profile in Supabase
@@ -217,6 +229,11 @@ export async function autoMigrateLocalToCloud(
  */
 export async function cloudAddPiece(piece: Piece) {
   try {
+    let finalCutoutUrl = piece.cutoutImageUrl;
+    if (finalCutoutUrl.startsWith('data:')) {
+      finalCutoutUrl = await uploadImageToStorage(finalCutoutUrl, 'pieces', `piece_${piece.id}`);
+    }
+
     await supabase.from('pieces').upsert({
       id: piece.id,
       owner_id: piece.ownerId,
@@ -225,7 +242,7 @@ export async function cloudAddPiece(piece: Piece) {
       owner_avatar: piece.ownerAvatar,
       title: piece.title,
       category: piece.category,
-      cutout_image_url: piece.cutoutImageUrl,
+      cutout_image_url: finalCutoutUrl,
       original_image_url: piece.originalImageUrl,
       brand_name: piece.brandName,
       dominant_colors: piece.dominantColors,
@@ -234,7 +251,7 @@ export async function cloudAddPiece(piece: Piece) {
       remix_count: piece.remixCount,
       likes_count: piece.likesCount,
       created_at: piece.createdAt
-    });
+    }, { onConflict: 'id' });
   } catch (err) {
     console.warn('Cloud add piece error:', err);
   }
@@ -276,7 +293,7 @@ export async function cloudAddMix(mix: Mix) {
       remix_chain_parent_id: mix.remixChainParentId,
       parent_mix_title: mix.parentMixTitle,
       parent_mix_creator_username: mix.parentMixCreatorUsername
-    });
+    }, { onConflict: 'id' });
   } catch (err) {
     console.warn('Cloud add mix error:', err);
   }
@@ -287,17 +304,22 @@ export async function cloudAddMix(mix: Mix) {
  */
 export async function cloudAddStory(story: Story) {
   try {
+    let finalMediaUrl = story.imageUrl;
+    if (finalMediaUrl.startsWith('data:')) {
+      finalMediaUrl = await uploadImageToStorage(finalMediaUrl, 'mixes', `story_${story.id}`);
+    }
+
     await supabase.from('stories').upsert({
       id: story.id,
       user_id: story.userId,
       username: story.username,
       user_name: story.displayName,
       user_avatar: story.avatarUrl,
-      media_url: story.imageUrl,
+      media_url: finalMediaUrl,
       caption: story.caption,
       created_at: story.createdAt,
       likes_count: story.likesCount || 0
-    });
+    }, { onConflict: 'id' });
   } catch (err) {
     console.warn('Cloud add story error:', err);
   }
