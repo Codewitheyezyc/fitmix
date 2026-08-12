@@ -12,7 +12,8 @@ import {
   Tag, 
   Shirt, 
   Image as ImageIcon,
-  Layers
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 
 interface UploadPieceModalProps {
@@ -89,46 +90,60 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 p-6 shadow-2xl transition-colors">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      
+      {/* Click outside to close backdrop */}
+      <div className="fixed inset-0" onClick={onClose} />
+
+      {/* Main Bottom Sheet / Modal Card */}
+      <div className="relative w-full max-w-2xl max-h-[92vh] sm:max-h-[85vh] rounded-t-[32px] sm:rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-2xl overflow-hidden flex flex-col z-10 transition-colors">
         
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-black/10 dark:border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#E2FF66]/20 text-[#0D0E12] dark:text-[#E2FF66]">
-              <Sparkles className="w-5 h-5" />
+        {/* Mobile Pull Drag Indicator */}
+        <div className="w-12 h-1.5 rounded-full bg-black/20 dark:bg-white/20 mx-auto mt-3 mb-1 sm:hidden flex-shrink-0" />
+
+        {/* Sticky Header */}
+        <div className="p-4 sm:p-5 border-b border-black/5 dark:border-white/5 flex items-center justify-between gap-3 bg-white/90 dark:bg-[#16181E]/90 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#E2FF66]/20 text-[#0D0E12] dark:text-[#E2FF66] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Sparkles className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-[#0D0E12] dark:text-white">Post a Piece (AI Cutout Studio)</h3>
-              <p className="text-xs text-[#64748B] dark:text-[#8E95A5]">Upload a photo — background is removed automatically into a remixable transparent cutout.</p>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-[#0D0E12] dark:text-white truncate">
+                Post a Piece (AI Cutout Studio)
+              </h3>
+              <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5] truncate">
+                Upload a photo — background is removed automatically into a remixable transparent cutout.
+              </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            className="p-2 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSave} className="mt-6 space-y-6">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin">
           
           {/* Photo Dropzone & Preview */}
           {!imageFile ? (
-            <div>
+            <div className="space-y-3">
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-56 rounded-2xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-[#E2FF66] bg-[#F8F9FA] dark:bg-[#0D0E12]/50 flex flex-col items-center justify-center cursor-pointer p-6 text-center transition-all group"
+                className="w-full h-52 sm:h-56 rounded-2xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-[#E2FF66] bg-gradient-to-b from-[#F8F9FA] to-[#F1F3F7] dark:from-[#12141A] dark:to-[#0D0E12] flex flex-col items-center justify-center cursor-pointer p-6 text-center transition-all group shadow-inner"
               >
-                <div className="w-12 h-12 rounded-full bg-white dark:bg-[#1F222A] flex items-center justify-center text-[#64748B] dark:text-[#8E95A5] group-hover:text-[#0D0E12] dark:group-hover:text-[#E2FF66] group-hover:scale-110 shadow-sm transition-all mb-3">
-                  <Upload className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#1F222A] flex items-center justify-center text-[#64748B] dark:text-[#8E95A5] group-hover:text-[#0D0E12] dark:group-hover:text-[#E2FF66] group-hover:scale-110 shadow-md transition-all mb-2.5">
+                  <Upload className="w-5 h-5 stroke-[2.5]" />
                 </div>
-                <h4 className="text-sm font-semibold text-[#0D0E12] dark:text-white group-hover:text-[#7B9600] dark:group-hover:text-[#E2FF66]">
+                <h4 className="text-xs sm:text-sm font-bold text-[#0D0E12] dark:text-white group-hover:text-[#7B9600] dark:group-hover:text-[#E2FF66]">
                   Click or drag photo of your piece
                 </h4>
-                <p className="text-xs text-[#64748B] dark:text-[#8E95A5] mt-1 max-w-sm">
-                  Shoes, jackets, pants, bags, or upcycled fashion items. High contrast backgrounds work best.
+                <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5] mt-1 max-w-sm px-2">
+                  Shoes, jackets, pants, bags, or upcycled fashion items. High-contrast backgrounds work best.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -139,28 +154,30 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                 />
               </div>
 
-              {/* Instant Test Presets */}
-              <div className="mt-3">
-                <span className="text-[11px] text-[#64748B] dark:text-[#8E95A5] block mb-1.5">Or try a demo sample piece:</span>
+              {/* Demo Presets Chips */}
+              <div className="pt-1">
+                <span className="text-[11px] font-semibold text-[#64748B] dark:text-[#8E95A5] block mb-2">
+                  Or test with sample items:
+                </span>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => selectPreset('https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600&auto=format&fit=crop&q=80', 'Nike Dunk Low Retro White Black', 'footwear', 'Nike')}
-                    className="px-2.5 py-1 text-xs rounded-lg bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-[#B0B7C6] border border-black/5 dark:border-white/5 hover:bg-black/5"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-colors"
                   >
                     👟 Nike Dunks
                   </button>
                   <button
                     type="button"
                     onClick={() => selectPreset('https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80', 'Vintage Distressed Leather Biker Jacket', 'outerwear', 'Schott NYC')}
-                    className="px-2.5 py-1 text-xs rounded-lg bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-[#B0B7C6] border border-black/5 dark:border-white/5 hover:bg-black/5"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-colors"
                   >
                     🧥 Leather Jacket
                   </button>
                   <button
                     type="button"
                     onClick={() => selectPreset('https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80', 'Vintage Leather Shoulder Bag', 'bags', 'Coach')}
-                    className="px-2.5 py-1 text-xs rounded-lg bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-[#B0B7C6] border border-black/5 dark:border-white/5 hover:bg-black/5"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-colors"
                   >
                     👜 Leather Bag
                   </button>
@@ -168,28 +185,28 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
               </div>
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative space-y-3">
               {/* Processing Overlay */}
               {isProcessing && (
-                <div className="absolute inset-0 z-20 rounded-2xl bg-white/90 dark:bg-[#0D0E12]/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div className="absolute inset-0 z-20 rounded-2xl bg-white/90 dark:bg-[#0D0E12]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
                   <div className="w-10 h-10 border-4 border-[#E2FF66] border-t-transparent rounded-full animate-spin mb-3" />
-                  <p className="text-xs font-semibold text-[#0D0E12] dark:text-white animate-pulse flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-[#0D0E12] dark:text-white animate-pulse flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
                     AI Removing Background Cutout...
                   </p>
                 </div>
               )}
 
-              {/* Cutout Transparency Checkerboard Display */}
-              <div className="w-full h-64 rounded-2xl transparency-grid flex items-center justify-center p-4 relative overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-black/40">
+              {/* Cutout Display */}
+              <div className="w-full h-60 sm:h-64 rounded-2xl bg-gradient-to-b from-[#F4F5F8] to-[#E5E7EB] dark:from-[#1F222A] dark:to-[#12141A] flex items-center justify-center p-4 relative overflow-hidden border border-black/10 dark:border-white/10 shadow-inner">
                 <img
                   src={imageFile}
                   alt="Piece preview"
-                  className="max-h-full max-w-full object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.3)] transition-all"
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.35)] transition-all"
                 />
 
                 {cutoutReady && (
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/90 dark:bg-[#0D0E12]/80 backdrop-blur-md border border-black/10 dark:border-[#E2FF66]/30 text-[#0D0E12] dark:text-[#E2FF66] text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/95 dark:bg-[#0D0E12]/90 backdrop-blur-md border border-black/10 dark:border-[#E2FF66]/40 text-[#0D0E12] dark:text-[#E2FF66] text-[11px] font-bold flex items-center gap-1.5 shadow-sm">
                     <Check className="w-3.5 h-3.5 text-emerald-500" />
                     Cutout Isolated & Ready
                   </div>
@@ -198,18 +215,18 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                 <button
                   type="button"
                   onClick={() => setImageFile(null)}
-                  className="absolute top-3 right-3 p-2 rounded-full bg-black/60 hover:bg-black text-white text-xs"
+                  className="absolute top-3 right-3 p-2 rounded-full bg-black/70 hover:bg-black text-white text-xs shadow-md transition-colors"
                   title="Change image"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Tolerance Adjustment Tool */}
-              <div className="mt-3 flex items-center justify-between gap-4 p-3 rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12]/60 border border-black/5 dark:border-white/5 text-xs">
-                <span className="text-[#64748B] dark:text-[#8E95A5] flex items-center gap-1.5">
+              {/* Precision Slider */}
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 text-xs">
+                <span className="text-[#64748B] dark:text-[#8E95A5] flex items-center gap-1.5 font-medium">
                   <Sliders className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
-                  Edge Cutout Precision:
+                  Edge Precision:
                 </span>
                 <input
                   type="range"
@@ -217,38 +234,38 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                   max="80"
                   value={tolerance}
                   onChange={(e) => setTolerance(Number(e.target.value))}
-                  className="accent-[#E2FF66] flex-1 max-w-xs"
+                  className="accent-[#E2FF66] flex-1 max-w-xs cursor-pointer"
                 />
-                <span className="text-[#0D0E12] dark:text-white font-mono">{tolerance}%</span>
+                <span className="text-[#0D0E12] dark:text-white font-mono text-[11px] font-bold">{tolerance}%</span>
               </div>
             </div>
           )}
 
           {/* Metadata Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
             
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-[#4B5563] dark:text-[#B0B7C6] mb-1.5">
+              <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                 Piece Name / Description *
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Adidas Samba Black, Vintage 1988 Trench Coat..."
+                placeholder="e.g. Nike Air Force 1, Vintage Leather Trench Coat..."
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#4B5563] dark:text-[#B0B7C6] mb-1.5">
+              <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                 Category *
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CategoryType)}
-                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors cursor-pointer"
               >
                 <option value="footwear">👟 Footwear / Shoes</option>
                 <option value="tops">👕 Tops / Sweaters / Shirts</option>
@@ -261,20 +278,20 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#4B5563] dark:text-[#B0B7C6] mb-1.5">
+              <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                 Brand / Origin (Optional)
               </label>
               <input
                 type="text"
-                placeholder="e.g. Adidas, Margiela, Thrifted..."
+                placeholder="e.g. Nike, Levi's, Uniqlo, Vintage..."
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
-                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-[#4B5563] dark:text-[#B0B7C6] mb-1.5">
+              <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                 Styling Notes (Optional)
               </label>
               <input
@@ -282,25 +299,25 @@ export default function UploadPieceModal({ onClose, onSuccess }: UploadPieceModa
                 placeholder="e.g. Looks best when paired with wide pleated trousers..."
                 value={stylingNotes}
                 onChange={(e) => setStylingNotes(e.target.value)}
-                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white placeholder-[#94A3B8] dark:placeholder-[#737373] border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
               />
             </div>
 
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/10 dark:border-white/10">
+          {/* Sticky Bottom Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/5 dark:border-white/5">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-full text-xs font-semibold text-[#64748B] dark:text-[#8E95A5] hover:bg-black/5 dark:hover:bg-white/5"
+              className="px-5 py-2.5 rounded-full text-xs font-semibold text-[#64748B] dark:text-[#8E95A5] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!imageFile || !title || isProcessing}
-              className="px-7 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(226,255,102,0.3)] hover:scale-105"
+              className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(226,255,102,0.3)] hover:scale-102 active:scale-95"
             >
               Publish to My Closet
             </button>

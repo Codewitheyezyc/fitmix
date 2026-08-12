@@ -26,7 +26,8 @@ import {
   UserCheck,
   UserPlus,
   Users,
-  Wand2
+  Wand2,
+  Tag
 } from 'lucide-react';
 
 export default function RemixCanvasEditor() {
@@ -57,6 +58,11 @@ export default function RemixCanvasEditor() {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<'followed' | 'closet' | 'explore'>('followed');
   const [pickerCategory, setPickerCategory] = useState<string>('all');
+
+  // Custom styling techniques state
+  const [customTechniqueList, setCustomTechniqueList] = useState<string[]>([]);
+  const [isAddingCustomTech, setIsAddingCustomTech] = useState(false);
+  const [customTechInput, setCustomTechInput] = useState('');
 
   // Form publish state
   const [title, setTitle] = useState('');
@@ -182,10 +188,8 @@ export default function RemixCanvasEditor() {
     if (layers.length === 0) return;
 
     const count = layers.length;
-    // Dynamic scale factor based on total piece count
     const baseScale = count <= 2 ? 0.95 : count === 3 ? 0.85 : count === 4 ? 0.78 : 0.68;
 
-    // Track category duplicates to distribute evenly
     const catCounts: Record<string, number> = {};
 
     const updatedLayers = layers.map((layer, idx) => {
@@ -324,6 +328,20 @@ export default function RemixCanvasEditor() {
     setIsDragging(false);
   };
 
+  // Add Custom Technique Handler
+  const handleAddCustomTechnique = () => {
+    const trimmed = customTechInput.trim();
+    if (!trimmed) return;
+    if (!customTechniqueList.includes(trimmed)) {
+      setCustomTechniqueList(prev => [...prev, trimmed]);
+    }
+    if (!selectedTechniques.includes(trimmed)) {
+      setSelectedTechniques(prev => [...prev, trimmed]);
+    }
+    setCustomTechInput('');
+    setIsAddingCustomTech(false);
+  };
+
   // Publish Outfit Mix
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
@@ -357,24 +375,28 @@ export default function RemixCanvasEditor() {
     router.push('/');
   };
 
-  // Filtered pieces for drawer based on Followed Stylists Permissions
+  // Followed User IDs list for filtering
   const followedUserIds = users.filter(u => u.isFollowing).map(u => u.username.toLowerCase());
-  
+
+  // Filtered pieces for the picker drawer
   const filteredPieces = pieces.filter(p => {
-    const isMine = p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
-    const isFollowed = followedUserIds.includes(p.ownerUsername.toLowerCase());
+    const matchesCategory = pickerCategory === 'all' || p.category === pickerCategory;
+    if (!matchesCategory) return false;
 
     if (pickerTab === 'closet') {
-      if (!isMine) return false;
-    } else if (pickerTab === 'followed') {
-      if (!isFollowed && !isMine) return false;
+      return p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
     }
-
-    if (pickerCategory !== 'all' && p.category.toLowerCase() !== pickerCategory.toLowerCase()) {
-      return false;
+    if (pickerTab === 'followed') {
+      return followedUserIds.includes(p.ownerUsername.toLowerCase()) || p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
     }
-    return true;
+    return true; // explore all
   });
+
+  // Combine default techniques + user-created custom techniques
+  const allAvailableTechniques = [
+    ...FASHION_TECHNIQUES.map(t => t.name),
+    ...customTechniqueList.filter(ct => !FASHION_TECHNIQUES.some(t => t.name === ct))
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -521,77 +543,87 @@ export default function RemixCanvasEditor() {
 
           </div>
 
-          {/* Floating Canvas Control Toolbar */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 p-2 rounded-2xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-xl text-xs transition-colors">
+          {/* Floating Canvas Control Toolbar - 2-Tier Structured Layout */}
+          <div className="mt-4 w-full max-w-xl flex flex-col items-center gap-2">
             
-            <button
-              onClick={() => setIsPickerOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#E2FF66] text-[#0D0E12] font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(226,255,102,0.25)] hover:scale-105 transition-all"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Add Clothing Piece</span>
-            </button>
-
-            {layers.length >= 2 && (
+            {/* Tier 1: Primary Action Buttons */}
+            <div className="flex items-center justify-center gap-2 p-1.5 rounded-2xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-xl text-xs transition-colors">
               <button
-                onClick={autoFitAndArrangeLayers}
-                className="px-3.5 py-2 rounded-xl bg-black/5 dark:bg-[#1F222A] text-[#0D0E12] dark:text-white hover:text-[#7B9600] dark:hover:text-[#E2FF66] border border-black/5 dark:border-white/5 font-semibold flex items-center gap-1.5 transition-colors"
-                title="Auto-Fit and arrange all pieces on the canvas"
+                onClick={() => setIsPickerOpen(true)}
+                className="px-4 py-2 rounded-xl bg-[#E2FF66] text-[#0D0E12] font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(226,255,102,0.25)] hover:scale-105 active:scale-95 transition-all"
               >
-                <Wand2 className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
-                <span>Auto-Fit</span>
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Add Clothing Piece</span>
               </button>
-            )}
 
+              {layers.length >= 2 && (
+                <button
+                  onClick={autoFitAndArrangeLayers}
+                  className="px-3.5 py-2 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white hover:text-[#7B9600] dark:hover:text-[#E2FF66] border border-black/5 dark:border-white/5 font-semibold flex items-center gap-1.5 transition-colors"
+                  title="Auto-Fit and arrange all pieces on the canvas"
+                >
+                  <Wand2 className="w-4 h-4 text-[#7B9600] dark:text-[#E2FF66]" />
+                  <span>Auto-Fit</span>
+                </button>
+              )}
+            </div>
+
+            {/* Tier 2: Selected Layer Controls (Always Grouped Together) */}
             {selectedLayer && (
-              <>
-                <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-1" />
+              <div className="flex items-center justify-center gap-1 p-1.5 rounded-2xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-xl text-xs overflow-x-auto no-scrollbar max-w-full animate-in fade-in duration-200">
+                <span className="text-[10px] font-bold text-[#64748B] dark:text-[#8E95A5] px-2 truncate max-w-[80px] sm:max-w-[100px] border-r border-black/10 dark:border-white/10">
+                  {selectedLayer.pieceData?.title}
+                </span>
 
-                {/* Scale controls */}
+                {/* Scale Down (Zoom -) */}
                 <button
                   onClick={() => updateSelectedLayer({ scale: Math.max(0.4, (selectedLayer.scale || 1) - 0.1) })}
-                  className="p-2 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A]"
-                  title="Scale Down"
+                  className="p-2 rounded-xl text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A] transition-colors"
+                  title="Scale Down (Zoom -)"
                 >
                   <ZoomOut className="w-4 h-4" />
                 </button>
+
+                {/* Scale Up (Zoom +) */}
                 <button
                   onClick={() => updateSelectedLayer({ scale: Math.min(2.2, (selectedLayer.scale || 1) + 0.1) })}
-                  className="p-2 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A]"
-                  title="Scale Up"
+                  className="p-2 rounded-xl text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A] transition-colors"
+                  title="Scale Up (Zoom +)"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </button>
 
-                {/* Rotate controls */}
+                {/* Rotate */}
                 <button
                   onClick={() => updateSelectedLayer({ rotation: (selectedLayer.rotation || 0) + 15 })}
-                  className="p-2 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A]"
+                  className="p-2 rounded-xl text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A] transition-colors"
                   title="Rotate Clockwise"
                 >
                   <RotateCw className="w-4 h-4" />
                 </button>
 
-                {/* Flip control */}
+                {/* Flip Horizontal */}
                 <button
                   onClick={() => updateSelectedLayer({ flipX: !selectedLayer.flipX })}
-                  className="p-2 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A]"
+                  className="p-2 rounded-xl text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A] transition-colors"
                   title="Flip Horizontal"
                 >
                   <FlipHorizontal className="w-4 h-4" />
                 </button>
 
-                {/* Z-Index Layer order */}
+                {/* Bring Forward */}
                 <button
                   onClick={bringForward}
-                  className="p-2 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A]"
+                  className="p-2 rounded-xl text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A] transition-colors"
                   title="Bring Forward"
                 >
                   <ArrowUp className="w-4 h-4" />
                 </button>
+
+                {/* Send Backward */}
                 <button
                   onClick={sendBackward}
-                  className="p-2 rounded-lg text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A]"
+                  className="p-2 rounded-xl text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-[#1F222A] transition-colors"
                   title="Send Backward"
                 >
                   <ArrowDown className="w-4 h-4" />
@@ -600,12 +632,12 @@ export default function RemixCanvasEditor() {
                 {/* Delete Layer */}
                 <button
                   onClick={deleteSelectedLayer}
-                  className="p-2 rounded-lg text-rose-500 hover:bg-rose-500/10"
+                  className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors"
                   title="Remove Item"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-              </>
+              </div>
             )}
 
           </div>
@@ -624,29 +656,25 @@ export default function RemixCanvasEditor() {
 
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
               {layers.length === 0 ? (
-                <p className="text-xs text-[#64748B] dark:text-[#8E95A5]">No pieces on canvas.</p>
+                <p className="text-xs text-[#64748B] dark:text-[#8E95A5] italic py-2">No clothing pieces added yet.</p>
               ) : (
                 layers.map((l, idx) => (
                   <div
-                    key={idx}
+                    key={`${l.pieceId}_list_${idx}`}
                     onClick={() => setSelectedLayerIndex(idx)}
-                    className={`p-2.5 rounded-2xl flex items-center gap-3 cursor-pointer border transition-all ${
+                    className={`p-2.5 rounded-2xl cursor-pointer border transition-all flex items-center gap-3 ${
                       selectedLayerIndex === idx
-                        ? 'bg-[#E2FF66]/10 border-[#E2FF66] text-[#0D0E12] dark:text-white shadow-sm'
-                        : 'bg-[#F4F5F8] dark:bg-[#0D0E12]/60 border-black/5 dark:border-white/5 text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
+                        ? 'bg-[#E2FF66]/10 border-[#E2FF66]'
+                        : 'bg-[#F4F5F8] dark:bg-[#1F222A] border-black/5 dark:border-white/5 hover:border-black/20'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-xl bg-black/5 dark:bg-black/40 flex items-center justify-center p-1 flex-shrink-0">
-                      <img
-                        src={l.pieceData?.cutoutImageUrl}
-                        alt="thumbnail"
-                        className="max-h-full max-w-full object-contain"
-                      />
+                    <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-black/40 flex items-center justify-center p-1 flex-shrink-0">
+                      <img src={l.pieceData?.cutoutImageUrl} alt="" className="max-h-full max-w-full object-contain" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-xs font-semibold block truncate text-[#0D0E12] dark:text-white">
+                      <h6 className="text-xs font-bold text-[#0D0E12] dark:text-white truncate">
                         {l.pieceData?.title}
-                      </span>
+                      </h6>
                       <span className="text-[10px] text-[#7B9600] dark:text-[#E2FF66] truncate block font-medium">
                         @{l.pieceData?.ownerUsername}
                       </span>
@@ -684,64 +712,77 @@ export default function RemixCanvasEditor() {
 
       {/* Piece Picker Drawer / Modal */}
       {isPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/15 p-6 shadow-2xl transition-colors">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          
+          <div className="fixed inset-0" onClick={() => setIsPickerOpen(false)} />
+
+          <div className="relative w-full max-w-3xl max-h-[92vh] sm:max-h-[85vh] rounded-t-[32px] sm:rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/15 shadow-2xl flex flex-col z-10 transition-colors overflow-hidden">
             
-            <div className="flex items-center justify-between pb-4 border-b border-black/10 dark:border-white/10">
+            {/* Mobile Pull Drag Indicator */}
+            <div className="w-12 h-1.5 rounded-full bg-black/20 dark:bg-white/20 mx-auto mt-3 mb-1 sm:hidden flex-shrink-0" />
+
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-[#0D0E12] dark:text-white">Select a Clothing Piece</h3>
-                <p className="text-xs text-[#64748B] dark:text-[#8E95A5]">Add cutouts from your own closet or stylists you follow.</p>
+                <h3 className="text-base sm:text-lg font-bold text-[#0D0E12] dark:text-white">Select a Clothing Piece</h3>
+                <p className="text-[11px] sm:text-xs text-[#64748B] dark:text-[#8E95A5]">Add cutouts from your own closet or stylists you follow.</p>
               </div>
               <button
                 onClick={() => setIsPickerOpen(false)}
-                className="p-1.5 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white"
+                className="p-2 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Filter Tabs & Search */}
-            <div className="mt-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            {/* Filter Tabs & Categories */}
+            <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-black/5 dark:border-white/5 space-y-3 flex-shrink-0">
               
-              {/* Tab Switcher */}
-              <div className="flex rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] p-1 border border-black/10 dark:border-white/10 text-xs">
+              {/* Tab Switcher - Balanced Grid */}
+              <div className="grid grid-cols-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#12141A] p-1 border border-black/5 dark:border-white/5 text-xs">
                 <button
                   onClick={() => setPickerTab('followed')}
-                  className={`px-3.5 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-                    pickerTab === 'followed' ? 'bg-[#E2FF66] text-[#0D0E12]' : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
+                  className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1.5 text-center truncate ${
+                    pickerTab === 'followed' 
+                      ? 'bg-[#E2FF66] text-[#0D0E12] shadow-sm' 
+                      : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                   }`}
                 >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Followed Stylists</span>
+                  <UserCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">Followed</span>
                 </button>
                 <button
                   onClick={() => setPickerTab('closet')}
-                  className={`px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
-                    pickerTab === 'closet' ? 'bg-[#E2FF66] text-[#0D0E12]' : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
+                  className={`px-3 py-2 rounded-xl font-bold transition-all text-center truncate ${
+                    pickerTab === 'closet' 
+                      ? 'bg-[#E2FF66] text-[#0D0E12] shadow-sm' 
+                      : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                   }`}
                 >
                   My Closet
                 </button>
                 <button
                   onClick={() => setPickerTab('explore')}
-                  className={`px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
-                    pickerTab === 'explore' ? 'bg-[#E2FF66] text-[#0D0E12]' : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
+                  className={`px-3 py-2 rounded-xl font-bold transition-all text-center truncate ${
+                    pickerTab === 'explore' 
+                      ? 'bg-[#E2FF66] text-[#0D0E12] shadow-sm' 
+                      : 'text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
                   }`}
                 >
                   Explore All
                 </button>
               </div>
 
-              {/* Category Pills */}
-              <div className="flex gap-1.5 overflow-x-auto max-w-full text-[11px]">
-                {(['all', 'footwear', 'outerwear', 'tops', 'bottoms', 'bags', 'upcycled'] as const).map(cat => (
+              {/* Category Pills with no-scrollbar */}
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs">
+                {(['all', 'footwear', 'outerwear', 'tops', 'bottoms', 'bags', 'accessories', 'upcycled'] as const).map(cat => (
                   <button
                     key={cat}
                     onClick={() => setPickerCategory(cat)}
-                    className={`px-3 py-1 rounded-full capitalize font-medium transition-all ${
+                    className={`px-3.5 py-1.5 rounded-full capitalize font-semibold transition-all flex-shrink-0 ${
                       pickerCategory === cat 
-                        ? 'bg-[#0D0E12] dark:bg-white text-white dark:text-[#0D0E12] font-bold' 
-                        : 'bg-[#F4F5F8] dark:bg-[#1F222A] text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white'
+                        ? 'bg-[#0D0E12] dark:bg-white text-white dark:text-[#0D0E12] shadow-sm' 
+                        : 'bg-[#F4F5F8] dark:bg-[#1F222A] text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white border border-black/5 dark:border-white/5'
                     }`}
                   >
                     {cat}
@@ -752,51 +793,59 @@ export default function RemixCanvasEditor() {
             </div>
 
             {/* Pieces Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-6">
-              {filteredPieces.map(piece => {
-                const isMine = piece.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
-                const isFollowed = followedUserIds.includes(piece.ownerUsername.toLowerCase());
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-thin">
+              {filteredPieces.length === 0 ? (
+                <div className="text-center py-12 text-xs text-[#64748B] dark:text-[#8E95A5]">
+                  No pieces found in this category.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {filteredPieces.map(piece => {
+                    const isMine = piece.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
+                    const isFollowed = followedUserIds.includes(piece.ownerUsername.toLowerCase());
 
-                return (
-                  <div
-                    key={piece.id}
-                    className="group p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-all flex flex-col justify-between"
-                  >
-                    <div 
-                      onClick={() => addPieceToCanvas(piece)}
-                      className="cursor-pointer"
-                    >
-                      <div className="w-full h-28 rounded-xl bg-black/5 dark:bg-black/40 flex items-center justify-center p-2 overflow-hidden mb-2">
-                        <img
-                          src={piece.cutoutImageUrl}
-                          alt={piece.title}
-                          className="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform"
-                        />
-                      </div>
-                      <h6 className="text-xs font-bold text-[#0D0E12] dark:text-white truncate">
-                        {piece.title}
-                      </h6>
-                      <p className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate">
-                        by <span className="text-[#7B9600] dark:text-[#E2FF66]">@{piece.ownerUsername}</span>
-                      </p>
-                    </div>
-
-                    {!isMine && !isFollowed && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const targetUser = users.find(u => u.username.toLowerCase() === piece.ownerUsername.toLowerCase());
-                          if (targetUser) toggleFollowUser(targetUser.id);
-                        }}
-                        className="mt-2 w-full py-1 text-[10px] font-bold rounded-full bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] flex items-center justify-center gap-1"
+                    return (
+                      <div
+                        key={piece.id}
+                        className="group p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 hover:border-[#E2FF66] transition-all flex flex-col justify-between"
                       >
-                        <UserPlus className="w-3 h-3" />
-                        <span>Follow to Remix</span>
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                        <div 
+                          onClick={() => addPieceToCanvas(piece)}
+                          className="cursor-pointer"
+                        >
+                          <div className="w-full h-28 rounded-xl bg-black/5 dark:bg-black/40 flex items-center justify-center p-2 overflow-hidden mb-2">
+                            <img
+                              src={piece.cutoutImageUrl}
+                              alt={piece.title}
+                              className="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                            />
+                          </div>
+                          <h6 className="text-xs font-bold text-[#0D0E12] dark:text-white truncate">
+                            {piece.title}
+                          </h6>
+                          <p className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate">
+                            by <span className="text-[#7B9600] dark:text-[#E2FF66]">@{piece.ownerUsername}</span>
+                          </p>
+                        </div>
+
+                        {!isMine && !isFollowed && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const targetUser = users.find(u => u.username.toLowerCase() === piece.ownerUsername.toLowerCase());
+                              if (targetUser) toggleFollowUser(targetUser.id);
+                            }}
+                            className="mt-2 w-full py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-[#12141A] text-[#0D0E12] dark:text-white hover:border-[#E2FF66] border border-black/10 dark:border-white/10 flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <UserPlus className="w-3 h-3 text-[#7B9600] dark:text-[#E2FF66]" />
+                            <span>Follow to Unlock</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           </div>
@@ -805,27 +854,35 @@ export default function RemixCanvasEditor() {
 
       {/* Publish Mix Modal */}
       {isPublishModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-xl rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/15 p-6 shadow-2xl transition-colors">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          
+          <div className="fixed inset-0" onClick={() => setIsPublishModalOpen(false)} />
+
+          <div className="relative w-full max-w-xl max-h-[92vh] sm:max-h-[85vh] rounded-t-[32px] sm:rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/15 shadow-2xl flex flex-col z-10 transition-colors overflow-hidden">
             
-            <div className="flex items-center justify-between pb-4 border-b border-black/10 dark:border-white/10">
-              <h3 className="text-lg font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
+            {/* Mobile Pull Drag Indicator */}
+            <div className="w-12 h-1.5 rounded-full bg-black/20 dark:bg-white/20 mx-auto mt-3 mb-1 sm:hidden flex-shrink-0" />
+
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0">
+              <h3 className="text-base sm:text-lg font-bold text-[#0D0E12] dark:text-white flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[#7B9600] dark:text-[#E2FF66]" />
-                Publish Outfit Mix
+                <span>Publish Outfit Mix</span>
               </h3>
               <button
                 onClick={() => setIsPublishModalOpen(false)}
-                className="p-1.5 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white"
+                className="p-2 rounded-full text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handlePublish} className="mt-4 space-y-4">
+            {/* Form Body */}
+            <form onSubmit={handlePublish} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-thin">
               
               {/* Title */}
               <div>
-                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1.5">
+                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                   Mix Title *
                 </label>
                 <input
@@ -834,13 +891,13 @@ export default function RemixCanvasEditor() {
                   placeholder="e.g. Electric Lime Pop x Archival Camel"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1.5">
+                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                   Styling Notes / Description
                 </label>
                 <textarea
@@ -848,43 +905,94 @@ export default function RemixCanvasEditor() {
                   placeholder="What makes this combination work? Share your styling thought process."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
                 />
               </div>
 
-              {/* Technique Tags */}
+              {/* Technique Tags with Custom Input */}
               <div>
-                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1.5">
-                  Styling Techniques Applied
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {FASHION_TECHNIQUES.map(tech => {
-                    const isSelected = selectedTechniques.includes(tech.name);
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-[#0D0E12] dark:text-white">
+                    Styling Techniques Applied
+                  </label>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#8E95A5]">Select or invent custom tags</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  {allAvailableTechniques.map(techName => {
+                    const isSelected = selectedTechniques.includes(techName);
                     return (
                       <button
-                        key={tech.id}
+                        key={techName}
                         type="button"
                         onClick={() => {
                           setSelectedTechniques(prev =>
-                            isSelected ? prev.filter(t => t !== tech.name) : [...prev, tech.name]
+                            isSelected ? prev.filter(t => t !== techName) : [...prev, techName]
                           );
                         }}
                         className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
                           isSelected
-                            ? 'bg-[#E2FF66] text-[#0D0E12] border-[#E2FF66]'
-                            : 'bg-[#F4F5F8] dark:bg-[#1F222A] text-[#64748B] dark:text-[#8E95A5] border-black/5 dark:border-white/5'
+                            ? 'bg-[#E2FF66] text-[#0D0E12] border-[#E2FF66] shadow-sm'
+                            : 'bg-[#F4F5F8] dark:bg-[#1F222A] text-[#64748B] dark:text-[#8E95A5] border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20'
                         }`}
                       >
-                        {tech.name}
+                        {techName}
                       </button>
                     );
                   })}
+
+                  {/* Custom Technique Creator Input */}
+                  {isAddingCustomTech ? (
+                    <div className="inline-flex items-center gap-1 bg-[#F4F5F8] dark:bg-[#1F222A] p-0.5 pl-2.5 rounded-full border border-[#E2FF66] animate-in fade-in">
+                      <input
+                        type="text"
+                        placeholder="e.g. 90s Minimalist"
+                        value={customTechInput}
+                        onChange={(e) => setCustomTechInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomTechnique();
+                          }
+                        }}
+                        className="bg-transparent text-xs text-[#0D0E12] dark:text-white placeholder-[#94A3B8] focus:outline-none w-28"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomTechnique}
+                        className="p-1 rounded-full bg-[#E2FF66] text-[#0D0E12] hover:scale-105 transition-transform"
+                        title="Add custom technique"
+                      >
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCustomTech(false);
+                          setCustomTechInput('');
+                        }}
+                        className="p-1 rounded-full text-[#64748B] hover:text-black dark:hover:text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCustomTech(true)}
+                      className="px-3 py-1 rounded-full text-xs font-semibold border border-dashed border-black/20 dark:border-white/20 text-[#7B9600] dark:text-[#E2FF66] hover:border-[#E2FF66] transition-all flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3 stroke-[3]" />
+                      <span>Custom Technique</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Why It Works Breakdown */}
               <div>
-                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1.5">
+                <label className="block text-xs font-semibold text-[#0D0E12] dark:text-white mb-1">
                   Why This Mix Works (Fashion Literacy Insight)
                 </label>
                 <input
@@ -892,23 +1000,23 @@ export default function RemixCanvasEditor() {
                   placeholder="e.g. High-contrast color pop prevents heritage outerwear from looking dated."
                   value={whyItWorks}
                   onChange={(e) => setWhyItWorks(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#0D0E12] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/10 dark:border-white/10 focus:outline-none focus:border-[#E2FF66]"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F5F8] dark:bg-[#1F222A] text-[#0D0E12] dark:text-white text-xs sm:text-sm border border-black/5 dark:border-white/5 focus:outline-none focus:border-[#E2FF66] transition-colors"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-black/10 dark:border-white/10">
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-black/5 dark:border-white/5">
                 <button
                   type="button"
                   onClick={() => setIsPublishModalOpen(false)}
-                  className="px-4 py-2 rounded-full text-xs text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white"
+                  className="px-4 py-2 rounded-full text-xs text-[#64748B] dark:text-[#8E95A5] hover:text-[#0D0E12] dark:hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isPublishing || !title.trim()}
-                  className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-[0_0_20px_rgba(226,255,102,0.3)] transition-all"
+                  className="px-6 py-2.5 rounded-full text-xs font-bold bg-[#E2FF66] text-[#0D0E12] hover:bg-[#d5f356] shadow-[0_0_20px_rgba(226,255,102,0.3)] transition-all hover:scale-102 active:scale-95 disabled:opacity-40"
                 >
                   {isPublishing ? 'Publishing...' : 'Publish to Feed'}
                 </button>
