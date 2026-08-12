@@ -3,7 +3,7 @@ import { Piece, Mix, Story, NotificationItem, UserProfile, DirectMessage } from 
 
 /**
  * FitMix Cloud Synchronization Engine
- * Handles bidirectional state syncing across user devices (Mobile <-> Desktop <-> Tablet)
+ * Handles seamless bidirectional state syncing across all devices (Mobile <-> Desktop <-> Tablet)
  */
 
 export interface CloudSyncData {
@@ -97,6 +97,118 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
   } catch (error) {
     console.warn('Cloud sync fetch notice:', error);
     return {};
+  }
+}
+
+/**
+ * Automatically migrate all locally stored custom pieces, mixes, and stories to Supabase Cloud.
+ * This ensures that whatever was previously created on mobile gets pushed to the cloud and appears on laptop/desktop.
+ */
+export async function autoMigrateLocalToCloud(
+  localPieces: Piece[],
+  localMixes: Mix[],
+  localStories: Story[],
+  currentUser: UserProfile
+) {
+  try {
+    // 1. Identify user-created custom pieces
+    const userPieces = localPieces.filter(
+      p => p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase() ||
+           p.ownerId === currentUser.id ||
+           p.id.startsWith('pc_') && !['pc_1', 'pc_2', 'pc_3', 'pc_4', 'pc_5', 'pc_6', 'pc_7', 'pc_8'].includes(p.id)
+    );
+
+    if (userPieces.length > 0) {
+      const piecePayloads = userPieces.map(piece => ({
+        id: piece.id,
+        owner_id: currentUser.id || piece.ownerId,
+        owner_username: currentUser.username || piece.ownerUsername,
+        owner_name: currentUser.displayName || piece.ownerName,
+        owner_avatar: currentUser.avatarUrl || piece.ownerAvatar,
+        title: piece.title,
+        category: piece.category,
+        cutout_image_url: piece.cutoutImageUrl,
+        original_image_url: piece.originalImageUrl,
+        brand_name: piece.brandName,
+        dominant_colors: piece.dominantColors,
+        description: piece.description,
+        styling_notes: piece.stylingNotes,
+        remix_count: piece.remixCount || 0,
+        likes_count: piece.likesCount || 0,
+        created_at: piece.createdAt || new Date().toISOString()
+      }));
+
+      await supabase.from('pieces').upsert(piecePayloads, { onConflict: 'id' });
+    }
+
+    // 2. Identify user-created custom mixes
+    const userMixes = localMixes.filter(
+      m => m.creatorUsername.toLowerCase() === currentUser.username.toLowerCase() ||
+           m.creatorId === currentUser.id ||
+           m.id.startsWith('mix_') && !['mix_1', 'mix_2', 'mix_3'].includes(m.id)
+    );
+
+    if (userMixes.length > 0) {
+      const mixPayloads = userMixes.map(mix => ({
+        id: mix.id,
+        creator_id: currentUser.id || mix.creatorId,
+        creator_username: currentUser.username || mix.creatorUsername,
+        creator_name: currentUser.displayName || mix.creatorName,
+        creator_avatar: currentUser.avatarUrl || mix.creatorAvatar,
+        title: mix.title,
+        description: mix.description,
+        rendered_image_url: mix.renderedImageUrl,
+        canvas_background: mix.canvasBackground,
+        layers_json: mix.layers,
+        technique_tags: mix.techniqueTags,
+        whyItWorks: mix.whyItWorks,
+        likes_count: mix.likesCount || 0,
+        comments_count: mix.commentsCount || 0,
+        remix_count: mix.remixCount || 0,
+        created_at: mix.createdAt || new Date().toISOString(),
+        remix_chain_parent_id: mix.remixChainParentId,
+        parent_mix_title: mix.parentMixTitle,
+        parent_mix_creator_username: mix.parentMixCreatorUsername
+      }));
+
+      await supabase.from('mixes').upsert(mixPayloads, { onConflict: 'id' });
+    }
+
+    // 3. Identify user-created custom stories
+    const userStories = localStories.filter(
+      s => s.username.toLowerCase() === currentUser.username.toLowerCase() ||
+           s.userId === currentUser.id
+    );
+
+    if (userStories.length > 0) {
+      const storyPayloads = userStories.map(story => ({
+        id: story.id,
+        user_id: currentUser.id || story.userId,
+        username: currentUser.username || story.username,
+        user_name: currentUser.displayName || story.displayName,
+        user_avatar: currentUser.avatarUrl || story.avatarUrl,
+        media_url: story.imageUrl,
+        caption: story.caption,
+        created_at: story.createdAt || new Date().toISOString(),
+        likes_count: story.likesCount || 0
+      }));
+
+      await supabase.from('stories').upsert(storyPayloads, { onConflict: 'id' });
+    }
+
+    // 4. Update profile in Supabase
+    await supabase.from('profiles').upsert({
+      id: currentUser.id,
+      username: currentUser.username,
+      display_name: currentUser.displayName,
+      avatar_url: currentUser.avatarUrl,
+      bio: currentUser.bio,
+      style_interests: currentUser.styleInterests,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'username' });
+
+  } catch (err) {
+    console.warn('Auto-migrate error notice:', err);
   }
 }
 

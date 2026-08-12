@@ -37,13 +37,19 @@ export default function ClosetProfilePage() {
     toggleTheme,
     toggleFollowUser, 
     getPiecesByOwner, 
-    getMixesByCreator 
+    getMixesByCreator,
+    syncWithCloud 
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'pieces' | 'mixes' | 'saved'>('pieces');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Ensure latest cloud items are synced on load
+  React.useEffect(() => {
+    syncWithCloud();
+  }, [username]);
 
   const isOwner = currentUser.username.toLowerCase() === username.toLowerCase();
   

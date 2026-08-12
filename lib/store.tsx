@@ -27,6 +27,7 @@ import { createMentionNotifications } from './mentionUtils';
 import { supabase } from './supabase';
 import { 
   fetchCloudData, 
+  autoMigrateLocalToCloud,
   cloudAddPiece, 
   cloudDeletePiece, 
   cloudAddMix, 
@@ -124,6 +125,7 @@ interface StoreContextType {
   toggleReactionMessage: (messageId: string, emoji: string) => void;
   markNotificationsAsRead: () => void;
   unreadNotificationsCount: number;
+  syncWithCloud: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -200,44 +202,22 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const savedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
       if (savedComments) setComments(JSON.parse(savedComments));
 
-      // Asynchronously fetch latest cloud data from Supabase across all devices
-      fetchCloudData().then(cloud => {
-        if (cloud.pieces && cloud.pieces.length > 0) {
-          setPieces(prev => {
-            const cloudIds = new Set(cloud.pieces!.map(p => p.id));
-            const existingSeedOnly = prev.filter(p => !cloudIds.has(p.id));
-            const merged = [...cloud.pieces!, ...existingSeedOnly];
-            persist(STORAGE_KEYS.PIECES, merged);
-            return merged;
-          });
-        }
-        if (cloud.mixes && cloud.mixes.length > 0) {
-          setMixes(prev => {
-            const cloudIds = new Set(cloud.mixes!.map(m => m.id));
-            const existingSeedOnly = prev.filter(m => !cloudIds.has(m.id));
-            const merged = [...cloud.mixes!, ...existingSeedOnly];
-            persist(STORAGE_KEYS.MIXES, merged);
-            return merged;
-          });
-        }
-        if (cloud.stories && cloud.stories.length > 0) {
-          setStories(prev => {
-            const cloudIds = new Set(cloud.stories!.map(s => s.id));
-            const existingSeedOnly = prev.filter(s => !cloudIds.has(s.id));
-            const merged = [...cloud.stories!, ...existingSeedOnly];
-            persist(STORAGE_KEYS.STORIES, merged);
-            return merged;
-          });
-        }
-        if (cloud.follows && cloud.follows.length > 0) {
-          const followingIds = new Set(cloud.follows.filter(f => f.follower_id === currentUser.id).map(f => f.following_id));
-          if (followingIds.size > 0) {
-            setUsers(prev => prev.map(u => ({ ...u, isFollowing: followingIds.has(u.id) })));
-          }
-        }
-      }).catch(err => console.warn('Supabase cloud fetch note:', err));
+      // 1. Trigger immediate bidirectional sync & migration with Supabase Cloud
+      syncWithCloud();
 
-      // Listen to live Supabase Auth
+      // 2. Periodic sync every 6 seconds to keep mobile and desktop 100% matched
+      const syncInterval = setInterval(() => {
+        syncWithCloud();
+      }, 6000);
+
+      // 3. Realtime Supabase broadcast listener for instant cross-device updates
+      const syncChannel = supabase.channel('fitmix_global_sync')
+        .on('broadcast', { event: 'cloud_change' }, () => {
+          syncWithCloud();
+        })
+        .subscribe();
+
+      // 4. Listen to live Supabase Auth
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           setIsAuthenticated(true);
@@ -260,11 +240,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
             };
             setCurrentUser(syncedUser);
             persist(STORAGE_KEYS.USER, syncedUser);
+            syncWithCloud();
           }
         }
       });
 
       return () => {
+        clearInterval(syncInterval);
+        supabase.removeChannel(syncChannel);
         authListener.subscription.unsubscribe();
       };
     } catch (e) {
@@ -273,6 +256,70 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthReady(true);
     }
   }, []);
+
+  // Full bidirectional cloud sync & local migration
+  const syncWithCloud = async () => {
+    try {
+      if (typeof window === 'undefined') return;
+
+      const rawPieces = localStorage.getItem(STORAGE_KEYS.PIECES);
+      const localPieces: Piece[] = rawPieces ? JSON.parse(rawPieces) : pieces;
+
+      const rawMixes = localStorage.getItem(STORAGE_KEYS.MIXES);
+      const localMixes: Mix[] = rawMixes ? JSON.parse(rawMixes) : mixes;
+
+      const rawStories = localStorage.getItem(STORAGE_KEYS.STORIES);
+      const localStories: Story[] = rawStories ? JSON.parse(rawStories) : stories;
+
+      const rawUser = localStorage.getItem(STORAGE_KEYS.USER);
+      const activeUser: UserProfile = rawUser ? JSON.parse(rawUser) : currentUser;
+
+      // Auto-migrate local user items to Supabase Cloud
+      await autoMigrateLocalToCloud(localPieces, localMixes, localStories, activeUser);
+
+      // Pull latest cloud data
+      const cloud = await fetchCloudData();
+
+      if (cloud.pieces && cloud.pieces.length > 0) {
+        setPieces(prev => {
+          const cloudIds = new Set(cloud.pieces!.map(p => p.id));
+          const existingSeedOnly = prev.filter(p => !cloudIds.has(p.id));
+          const merged = [...cloud.pieces!, ...existingSeedOnly];
+          persist(STORAGE_KEYS.PIECES, merged);
+          return merged;
+        });
+      }
+
+      if (cloud.mixes && cloud.mixes.length > 0) {
+        setMixes(prev => {
+          const cloudIds = new Set(cloud.mixes!.map(m => m.id));
+          const existingSeedOnly = prev.filter(m => !cloudIds.has(m.id));
+          const merged = [...cloud.mixes!, ...existingSeedOnly];
+          persist(STORAGE_KEYS.MIXES, merged);
+          return merged;
+        });
+      }
+
+      if (cloud.stories && cloud.stories.length > 0) {
+        setStories(prev => {
+          const cloudIds = new Set(cloud.stories!.map(s => s.id));
+          const existingSeedOnly = prev.filter(s => !cloudIds.has(s.id));
+          const merged = [...cloud.stories!, ...existingSeedOnly];
+          persist(STORAGE_KEYS.STORIES, merged);
+          return merged;
+        });
+      }
+
+      if (cloud.follows && cloud.follows.length > 0) {
+        const followingIds = new Set(cloud.follows.filter(f => f.follower_id === activeUser.id).map(f => f.following_id));
+        if (followingIds.size > 0) {
+          setUsers(prev => prev.map(u => ({ ...u, isFollowing: followingIds.has(u.id) })));
+        }
+      }
+    } catch (err) {
+      console.warn('Sync error notice:', err);
+    }
+  };
 
   const persist = (key: string, data: any) => {
     if (typeof window !== 'undefined') {
@@ -767,7 +814,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       getMessagesBetween,
       toggleReactionMessage,
       markNotificationsAsRead,
-      unreadNotificationsCount
+      unreadNotificationsCount,
+      syncWithCloud
     }}>
       {children}
     </StoreContext.Provider>
