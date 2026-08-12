@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #FAFAFC;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F4F5F8;
+    --text-primary: #0D0E12;
+    --text-secondary: #64748B;
+    --border-subtle: rgba(0, 0, 0, 0.08);
+    --accent-lime: #B5DB10;
+    --scrollbar-thumb: #D1D5DB;
+    --scrollbar-thumb-hover: #9CA3AF;
+  }
+
+  .dark {
+    --bg-primary: #0D0E12;
+    --bg-surface: #16181E;
+    --bg-elevated: #1F222A;
+    --text-primary: #F8F9FA;
+    --text-secondary: #8E95A5;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --accent-lime: #E2FF66;
+    --scrollbar-thumb: #2A2E39;
+    --scrollbar-thumb-hover: #E2FF66;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Custom App-Branded Minimalist Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  body {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Studio Flat-Lay Background Textures */
+.canvas-bg-obsidian {
+  background-color: #0D0E12;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.canvas-bg-paper {
+  background-color: #F7F7F5;
+  background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.canvas-bg-velvet {
+  background-color: #121018;
+  background-image: radial-gradient(circle at 50% 50%, rgba(157, 78, 221, 0.08), transparent 70%);
+}
+
+.canvas-bg-grid {
+  background-color: #111318;
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.canvas-bg-warm {
+  background-color: #1A1614;
+  background-image: radial-gradient(circle at 50% 50%, rgba(244, 162, 97, 0.08), transparent 70%);
+}
+
+/* AI Cutout Transparency Checkerboard */
+.transparency-grid {
+  background-image: linear-gradient(45deg, rgba(128,128,128,0.12) 25%, transparent 25%),
+                    linear-gradient(-45deg, rgba(128,128,128,0.12) 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, rgba(128,128,128,0.12) 75%),
+                    linear-gradient(-45deg, transparent 75%, rgba(128,128,128,0.12) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
