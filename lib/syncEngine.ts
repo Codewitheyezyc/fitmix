@@ -616,3 +616,52 @@ export async function cloudDeleteUserAccount(userId: string, username: string): 
   }
 }
 
+/**
+ * Update user profile in Supabase profiles table and cascade avatar changes across existing pieces, mixes, and comments.
+ */
+export async function cloudUpdateUserProfile(profile: UserProfile): Promise<boolean> {
+  try {
+    const authUser = (await supabase.auth.getUser()).data.user;
+    const targetUserId = authUser?.id || (profile.id && profile.id !== 'guest' ? profile.id : null);
+
+    if (targetUserId) {
+      await supabase.from('profiles').upsert({
+        id: targetUserId,
+        username: profile.username,
+        display_name: profile.displayName,
+        avatar_url: profile.avatarUrl || '',
+        bio: profile.bio || '',
+        location: profile.location || '',
+        style_interests: profile.styleInterests || [],
+        has_completed_onboarding: profile.hasCompletedOnboarding ?? true,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+    } else if (profile.username) {
+      await supabase.from('profiles').update({
+        display_name: profile.displayName,
+        avatar_url: profile.avatarUrl || '',
+        bio: profile.bio || '',
+        location: profile.location || '',
+        style_interests: profile.styleInterests || [],
+        updated_at: new Date().toISOString()
+      }).eq('username', profile.username);
+    }
+
+    // Cascade avatar and display name across existing content tables
+    if (profile.username && profile.avatarUrl) {
+      Promise.allSettled([
+        supabase.from('pieces').update({ owner_avatar: profile.avatarUrl, owner_name: profile.displayName }).eq('owner_username', profile.username),
+        supabase.from('mixes').update({ creator_avatar: profile.avatarUrl, creator_name: profile.displayName }).eq('creator_username', profile.username),
+        supabase.from('stories').update({ user_avatar: profile.avatarUrl, user_name: profile.displayName }).eq('username', profile.username),
+        supabase.from('comments').update({ user_avatar: profile.avatarUrl }).eq('username', profile.username)
+      ]);
+    }
+
+    return true;
+  } catch (err) {
+    console.error('cloudUpdateUserProfile error:', err);
+    return false;
+  }
+}
+
+

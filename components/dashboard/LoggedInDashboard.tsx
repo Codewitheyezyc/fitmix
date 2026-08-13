@@ -10,6 +10,7 @@ import PieceDetailModal from '@/components/piece/PieceDetailModal';
 import StoryViewerModal from '@/components/story/StoryViewerModal';
 import UploadStoryModal from '@/components/story/UploadStoryModal';
 import UserAvatar from '@/components/ui/UserAvatar';
+import MixCardSkeleton from '@/components/feed/MixCardSkeleton';
 import { Piece, UserProfile } from '@/lib/types';
 import { 
   Sparkles, 
@@ -365,8 +366,12 @@ export default function LoggedInDashboard() {
                   key={`mobile_stylist_${stylist.id}`}
                   className="flex-shrink-0 w-36 p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 flex flex-col items-center text-center gap-2"
                 >
-                  <Link href={`/closet/${stylist.username}`} className="relative w-11 h-11 rounded-full overflow-hidden border border-black/10 dark:border-white/15">
-                    <img src={stylist.avatarUrl} alt={stylist.displayName} className="w-full h-full object-cover" />
+                  <Link href={`/closet/${stylist.username}`}>
+                    <UserAvatar 
+                      src={stylist.avatarUrl} 
+                      name={stylist.displayName || stylist.username} 
+                      size="sm" 
+                    />
                   </Link>
                   <div className="min-w-0 w-full">
                     <Link href={`/closet/${stylist.username}`} className="text-xs font-bold text-[#0D0E12] dark:text-white truncate block hover:underline">
@@ -443,9 +448,11 @@ export default function LoggedInDashboard() {
                     href={`/closet/${stylist.username}`}
                     className="flex items-center gap-2.5 min-w-0 group"
                   >
-                    <div className="w-9 h-9 rounded-full overflow-hidden border border-black/10 dark:border-white/10 group-hover:border-[#E2FF66] transition-colors flex-shrink-0">
-                      <img src={stylist.avatarUrl} alt={stylist.displayName} className="w-full h-full object-cover" />
-                    </div>
+                    <UserAvatar 
+                      src={stylist.avatarUrl} 
+                      name={stylist.displayName || stylist.username} 
+                      size="sm" 
+                    />
                     <div className="min-w-0">
                       <h6 className="text-xs font-bold text-[#0D0E12] dark:text-white group-hover:text-[#7B9600] dark:group-hover:text-[#E2FF66] truncate transition-colors">
                         {stylist.displayName}

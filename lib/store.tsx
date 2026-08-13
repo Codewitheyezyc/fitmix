@@ -42,7 +42,8 @@ import {
   cloudUpdateDirectMessageReaction,
   cloudAddNotification,
   cloudMarkNotificationsRead,
-  cloudDeleteUserAccount
+  cloudDeleteUserAccount,
+  cloudUpdateUserProfile
 } from './syncEngine';
 
 
@@ -188,17 +189,75 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       // 1. One-time sync on mount (no polling - avoids app slowness)
       syncWithCloud();
 
-      // 2. Realtime Supabase subscription for live cross-device updates across ALL tables
+      // 2. Realtime Supabase subscription for targeted live updates (no heavy refetch loops)
       const syncChannel = supabase
         .channel('fitmix_realtime_sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'pieces' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'mixes' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'follows' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => syncWithCloud())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => syncWithCloud())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload: any) => {
+          if (payload.new && payload.new.id) {
+            const p = payload.new;
+            const updatedProfile: Partial<UserProfile> = {
+              displayName: p.display_name,
+              avatarUrl: p.avatar_url || '',
+              bio: p.bio || '',
+              location: p.location || '',
+              styleInterests: p.style_interests || []
+            };
+
+            setUsers(prev => prev.map(u => u.id === p.id || u.username === p.username ? { ...u, ...updatedProfile } : u));
+            
+            // If it's current user profile, update currentUser state in real-time across devices!
+            setCurrentUser(prev => {
+              if (prev.id === p.id || (prev.username && prev.username.toLowerCase() === (p.username || '').toLowerCase())) {
+                const merged = { ...prev, ...updatedProfile };
+                persist(STORAGE_KEYS.USER, merged);
+                return merged;
+              }
+              return prev;
+            });
+          }
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mixes' }, (payload: any) => {
+          if (payload.new && payload.new.id) {
+            const m = payload.new;
+            const newMix: Mix = {
+              id: m.id,
+              creatorId: m.creator_id,
+              creatorUsername: m.creator_username || 'creator',
+              creatorName: m.creator_name || 'Creator',
+              creatorAvatar: m.creator_avatar || '',
+              title: m.title,
+              description: m.description,
+              renderedImageUrl: m.rendered_image_url,
+              canvasBackground: m.canvas_background,
+              layers: m.layers_json || [],
+              techniqueTags: m.technique_tags || ['Streetwear x Formal'],
+              whyItWorks: m.why_it_works,
+              likesCount: m.likes_count || 0,
+              commentsCount: m.comments_count || 0,
+              remixCount: m.remix_count || 0,
+              createdAt: m.created_at,
+              remixChainParentId: m.remix_chain_parent_id,
+              parentMixTitle: m.parent_mix_title,
+              parentMixCreatorUsername: m.parent_mix_creator_username
+            };
+            setMixes(prev => prev.some(existing => existing.id === newMix.id) ? prev : [newMix, ...prev]);
+          }
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, (payload: any) => {
+          if (payload.new && payload.new.id) {
+            const c = payload.new;
+            const newComment: Comment = {
+              id: c.id,
+              mixId: c.mix_id,
+              userId: c.user_id,
+              username: c.username || 'stylist',
+              userAvatar: c.user_avatar || '',
+              content: c.content,
+              createdAt: c.created_at
+            };
+            setComments(prev => prev.some(existing => existing.id === newComment.id) ? prev : [...prev, newComment]);
+          }
+        })
         .subscribe();
 
       // 3. Listen to live Supabase Auth state changes
@@ -283,27 +342,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser(prev => {
       const updated = { ...prev, ...updates };
       persist(STORAGE_KEYS.USER, updated);
+      cloudUpdateUserProfile(updated);
       return updated;
     });
-    // Sync to Supabase profiles table (outside setState to avoid PromiseLike issue)
-    const doSync = async () => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEYS.USER);
-        const updated: UserProfile = raw ? JSON.parse(raw) : { ...currentUser, ...updates };
-        await supabase.from('profiles').upsert({
-          id: updated.id,
-          username: updated.username,
-          display_name: updated.displayName,
-          avatar_url: updated.avatarUrl,
-          bio: updated.bio,
-          location: updated.location,
-          style_interests: updated.styleInterests,
-          has_completed_onboarding: updated.hasCompletedOnboarding ?? true,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'username' });
-      } catch (_) {}
-    };
-    doSync();
   };
 
   // Full bidirectional cloud sync & local migration

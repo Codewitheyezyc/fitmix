@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import UploadPieceModal from '@/components/piece/UploadPieceModal';
 import DirectMessageDrawer from '@/components/social/DirectMessageDrawer';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -161,9 +162,7 @@ export default function Navbar() {
                           ) : (
                             notifications.map(n => (
                               <div key={n.id} className="pt-2.5 pb-1.5 flex items-start gap-3 text-xs pr-1">
-                                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-black/10 dark:border-white/10">
-                                  <img src={n.actorAvatar} alt={n.actorUsername} className="w-full h-full object-cover" />
-                                </div>
+                                <UserAvatar src={n.actorAvatar} name={n.actorUsername} size="xs" />
                                 <div className="flex-1 min-w-0 pr-1">
                                   <p className="text-[#0D0E12] dark:text-[#F8F9FA] leading-tight">
                                     <span className="font-semibold text-[#7B9600] dark:text-[#E2FF66]">@{n.actorUsername}</span>{' '}
@@ -227,15 +226,13 @@ export default function Navbar() {
                 <div className="relative ml-1">
                   <button
                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-[#E2FF66] bg-[#E2FF66]/10 flex items-center justify-center hover:ring-2 hover:ring-[#E2FF66] transition-all"
+                    className="hover:scale-105 transition-transform cursor-pointer"
                   >
-                    {currentUser.avatarUrl ? (
-                      <img src={currentUser.avatarUrl} alt={currentUser.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-[#7B9600] dark:text-[#E2FF66]">
-                        {(currentUser.displayName || currentUser.username || 'S')[0]?.toUpperCase()}
-                      </span>
-                    )}
+                    <UserAvatar 
+                      src={currentUser.avatarUrl} 
+                      name={currentUser.displayName || currentUser.username} 
+                      size="sm" 
+                    />
                   </button>
 
                   {/* Profile Dropdown Menu */}
