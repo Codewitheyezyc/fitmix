@@ -20,6 +20,7 @@ import {
   Trash2,
   AlertTriangle
 } from 'lucide-react';
+import { useUserProfile } from '@/lib/userStore';
 
 interface PieceDetailModalProps {
   piece: Piece;
@@ -28,11 +29,12 @@ interface PieceDetailModalProps {
 
 export default function PieceDetailModal({ piece, onClose }: PieceDetailModalProps) {
   const { getMixesByPiece, deletePiece, currentUser } = useStore();
+  const owner = useUserProfile(piece.ownerId, piece.ownerUsername);
   const [isCopied, setIsCopied] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const remixedMixes = getMixesByPiece(piece.id);
 
-  const isOwner = currentUser.username === piece.ownerUsername || currentUser.id === piece.ownerId;
+  const isOwner = currentUser.id === piece.ownerId;
 
   const handleShare = async () => {
     try {

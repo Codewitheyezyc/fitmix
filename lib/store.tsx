@@ -45,6 +45,7 @@ import {
   cloudDeleteUserAccount,
   cloudUpdateUserProfile
 } from './syncEngine';
+import { setUserProfile, setUsersMap } from './userStore';
 
 
 interface StoreContextType {
@@ -115,16 +116,16 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | null>(null);
 
 const STORAGE_KEYS = {
-  PIECES: 'fitmix_pieces_v4',
-  MIXES: 'fitmix_mixes_v4',
-  USERS: 'fitmix_users_v4',
-  NOTIFICATIONS: 'fitmix_notifications_v4',
-  DMS: 'fitmix_dms_v4',
-  COMMENTS: 'fitmix_comments_v4',
-  STORIES: 'fitmix_stories_v4',
-  THEME: 'fitmix_theme_v4',
-  AUTH: 'fitmix_auth_v4',
-  USER: 'fitmix_current_user_v4'
+  PIECES: 'fitmix_pieces_v5',
+  MIXES: 'fitmix_mixes_v5',
+  USERS: 'fitmix_users_v5',
+  NOTIFICATIONS: 'fitmix_notifications_v5',
+  DMS: 'fitmix_dms_v5',
+  COMMENTS: 'fitmix_comments_v5',
+  STORIES: 'fitmix_stories_v5',
+  THEME: 'fitmix_theme_v5',
+  AUTH: 'fitmix_auth_v5',
+  USER: 'fitmix_current_user_v5'
 };
 
 export const StoreProvider = ({ children }: { children: ReactNode }) => {
@@ -195,13 +196,23 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload: any) => {
           if (payload.new && payload.new.id) {
             const p = payload.new;
-            const updatedProfile: Partial<UserProfile> = {
-              displayName: p.display_name,
+            const updatedProfile: UserProfile = {
+              id: p.id,
+              username: p.username || 'stylist',
+              displayName: p.display_name || p.username || 'Stylist',
               avatarUrl: p.avatar_url || '',
-              bio: p.bio || '',
+              bio: p.bio || 'Fashion lover & outfit mixer.',
               location: p.location || '',
-              styleInterests: p.style_interests || []
+              styleInterests: p.style_interests || [],
+              totalRemixesReceived: 0,
+              followersCount: 0,
+              followingCount: 0,
+              hasCompletedOnboarding: p.has_completed_onboarding ?? true,
+              createdAt: p.created_at || new Date().toISOString()
             };
+
+            // Update canonical userStore dynamically!
+            setUserProfile(updatedProfile);
 
             setUsers(prev => prev.map(u => u.id === p.id || u.username === p.username ? { ...u, ...updatedProfile } : u));
             
@@ -409,6 +420,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
       if (cloud.users && cloud.users.length > 0) {
         setUsers(cloud.users);
+        setUsersMap(cloud.users);
         persist(STORAGE_KEYS.USERS, cloud.users);
 
         const myCloudProfile = cloud.users.find(u => 

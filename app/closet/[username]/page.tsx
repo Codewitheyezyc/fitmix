@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Piece } from '@/lib/types';
+import { fetchUserRemixCount, fetchAliasByOldUsername } from '@/lib/syncEngine';
+import UserAvatar from '@/components/ui/UserAvatar';
 import { 
   User, 
   Sparkles, 
@@ -23,10 +25,10 @@ import PieceDetailModal from '@/components/piece/PieceDetailModal';
 import DirectMessageDrawer from '@/components/social/DirectMessageDrawer';
 import MixCard from '@/components/feed/MixCard';
 import Link from 'next/link';
-import { fetchUserRemixCount } from '@/lib/syncEngine';
 
 export default function ClosetProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const username = params.username as string;
 
   const { 
@@ -37,8 +39,6 @@ export default function ClosetProfilePage() {
     theme,
     toggleTheme,
     toggleFollowUser, 
-    getPiecesByOwner, 
-    getMixesByCreator,
     syncWithCloud 
   } = useStore();
 
@@ -48,11 +48,24 @@ export default function ClosetProfilePage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [liveRemixCount, setLiveRemixCount] = useState<number | null>(null);
 
-  // Ensure latest cloud items are synced on load + fetch live remix count
+  // Check if handle matches active user or historical alias
   useEffect(() => {
     syncWithCloud();
     fetchUserRemixCount(username).then(count => setLiveRemixCount(count));
-  }, [username]);
+
+    // Handle historical alias lookup if handle is not found directly
+    const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (!foundUser && currentUser.username.toLowerCase() !== username.toLowerCase()) {
+      fetchAliasByOldUsername(username).then(alias => {
+        if (alias) {
+          const matchedUser = users.find(u => u.id === alias.userId);
+          if (matchedUser && matchedUser.username) {
+            router.replace(`/closet/${matchedUser.username}`);
+          }
+        }
+      });
+    }
+  }, [username, users, currentUser]);
 
   const isOwner = currentUser.username.toLowerCase() === username.toLowerCase();
   
@@ -72,8 +85,9 @@ export default function ClosetProfilePage() {
         createdAt: '2026-01-01T00:00:00Z'
       };
 
-  const userPieces = getPiecesByOwner(username);
-  const userMixes = getMixesByCreator(username);
+  // Filter pieces and mixes by stable owner/creator ID
+  const userPieces = pieces.filter(p => p.ownerId === profileUser.id || p.ownerUsername.toLowerCase() === profileUser.username.toLowerCase());
+  const userMixes = mixes.filter(m => m.creatorId === profileUser.id || m.creatorUsername.toLowerCase() === profileUser.username.toLowerCase());
   const savedMixes = mixes.filter(m => m.isSaved);
 
   // Live remix count from Supabase (null = loading, show '—')

@@ -21,6 +21,7 @@ import {
 import PieceDetailModal from '@/components/piece/PieceDetailModal';
 import MixCommentsModal from '@/components/feed/MixCommentsModal';
 import UserAvatar from '@/components/ui/UserAvatar';
+import { useUserProfile } from '@/lib/userStore';
 
 interface MixCardProps {
   mix: Mix;
@@ -45,14 +46,7 @@ export default function MixCard({ mix }: MixCardProps) {
     }
   };
 
-  const creator = users.find(u => u.id === mix.creatorId) || {
-    id: mix.creatorId,
-    username: mix.creatorUsername,
-    displayName: mix.creatorName,
-    avatarUrl: mix.creatorAvatar,
-    isFollowing: false
-  };
-
+  const creator = useUserProfile(mix.creatorId, mix.creatorUsername);
   const isOwner = currentUser.id === mix.creatorId;
 
   return (
@@ -62,20 +56,20 @@ export default function MixCard({ mix }: MixCardProps) {
         {/* Card Header: Creator Info */}
         <div className="p-4 sm:p-5 flex items-center justify-between gap-3 border-b border-black/5 dark:border-white/5">
           <Link 
-            href={`/closet/${mix.creatorUsername}`}
+            href={`/closet/${creator.username}`}
             className="flex items-center gap-3 group min-w-0"
           >
             <UserAvatar 
-              src={mix.creatorAvatar} 
-              name={mix.creatorName || mix.creatorUsername} 
+              src={creator.avatarUrl} 
+              name={creator.displayName || creator.username} 
               size="md" 
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 truncate">
                 <span className="font-bold text-sm text-[#0D0E12] dark:text-white group-hover:text-[#B5DB10] dark:group-hover:text-[#E2FF66] transition-colors truncate">
-                  {mix.creatorName}
+                  {creator.displayName}
                 </span>
-                <span className="text-xs text-[#64748B] dark:text-[#8E95A5] truncate">@{mix.creatorUsername}</span>
+                <span className="text-xs text-[#64748B] dark:text-[#8E95A5] truncate">@{creator.username}</span>
               </div>
               
               {/* Lineage indicator */}

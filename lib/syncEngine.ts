@@ -625,6 +625,22 @@ export async function cloudUpdateUserProfile(profile: UserProfile): Promise<bool
     const targetUserId = authUser?.id || (profile.id && profile.id !== 'guest' ? profile.id : null);
 
     if (targetUserId) {
+      // Check existing profile to see if handle was modified
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', targetUserId)
+        .maybeSingle();
+
+      if (existingProfile && existingProfile.username && existingProfile.username.toLowerCase() !== profile.username.toLowerCase()) {
+        // Record old username in username_aliases table to preserve historical URLs
+        await supabase.from('username_aliases').upsert({
+          user_id: targetUserId,
+          old_username: existingProfile.username.toLowerCase(),
+          created_at: new Date().toISOString()
+        }, { onConflict: 'old_username' }).select();
+      }
+
       await supabase.from('profiles').upsert({
         id: targetUserId,
         username: profile.username,
@@ -647,21 +663,33 @@ export async function cloudUpdateUserProfile(profile: UserProfile): Promise<bool
       }).eq('username', profile.username);
     }
 
-    // Cascade avatar and display name across existing content tables
-    if (profile.username && profile.avatarUrl) {
-      Promise.allSettled([
-        supabase.from('pieces').update({ owner_avatar: profile.avatarUrl, owner_name: profile.displayName }).eq('owner_username', profile.username),
-        supabase.from('mixes').update({ creator_avatar: profile.avatarUrl, creator_name: profile.displayName }).eq('creator_username', profile.username),
-        supabase.from('stories').update({ user_avatar: profile.avatarUrl, user_name: profile.displayName }).eq('username', profile.username),
-        supabase.from('comments').update({ user_avatar: profile.avatarUrl }).eq('username', profile.username)
-      ]);
-    }
-
     return true;
   } catch (err) {
     console.error('cloudUpdateUserProfile error:', err);
     return false;
   }
 }
+
+/**
+ * Check if a handle exists as a historic username alias.
+ */
+export async function fetchAliasByOldUsername(oldUsername: string): Promise<{ userId: string } | null> {
+  try {
+    const { data } = await supabase
+      .from('username_aliases')
+      .select('user_id')
+      .eq('old_username', oldUsername.toLowerCase())
+      .maybeSingle();
+    
+    if (data && data.user_id) {
+      return { userId: data.user_id };
+    }
+    return null;
+  } catch (e) {
+    console.warn('fetchAliasByOldUsername error:', e);
+    return null;
+  }
+}
+
 
 
