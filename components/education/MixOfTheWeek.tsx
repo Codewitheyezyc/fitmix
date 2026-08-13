@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import { useUserProfile } from '@/lib/userStore';
 import { Sparkles, Trophy, Repeat, ArrowRight, Layers, ExternalLink } from 'lucide-react';
 
 interface MixOfTheWeekProps {
@@ -12,6 +13,7 @@ interface MixOfTheWeekProps {
 export default function MixOfTheWeek({ compact = false }: MixOfTheWeekProps) {
   const { mixes } = useStore();
   const spotlightMix = mixes[0]; // Featured standout mix
+  const creator = useUserProfile(spotlightMix?.creatorId || '', spotlightMix?.creatorUsername);
 
   if (!spotlightMix) return null;
 
@@ -38,27 +40,27 @@ export default function MixOfTheWeek({ compact = false }: MixOfTheWeekProps) {
         <div className="w-full aspect-[4/3] rounded-2xl canvas-bg-obsidian border border-black/10 dark:border-white/10 relative overflow-hidden shadow-inner group">
           {spotlightMix.layers.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className="w-10 h-10 text-[#E2FF66]/30" />
+              <span className="text-xs text-white/50">Empty Look</span>
             </div>
           ) : (
-            spotlightMix.layers.map((l, idx) =>
-              l.pieceData && (
+            spotlightMix.layers.map((layer, idx) => (
+              <div
+                key={`${layer.pieceId}_${idx}`}
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${layer.x}%`,
+                  top: `${layer.y}%`,
+                  transform: `translate(-50%, -50%) scale(${layer.scale * 0.75}) rotate(${layer.rotation}deg) ${layer.flipX ? 'scaleX(-1)' : ''}`,
+                  zIndex: layer.zIndex,
+                }}
+              >
                 <img
-                  key={idx}
-                  src={l.pieceData.cutoutImageUrl}
-                  alt={l.pieceData.title}
-                  className="absolute object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] transition-transform group-hover:scale-105"
-                  style={{
-                    left: `${l.x ?? 50}%`,
-                    top: `${l.y ?? 50}%`,
-                    width: `${Math.min(Math.max((l.scale ?? 1) * 120, 90), 200)}px`,
-                    height: `${Math.min(Math.max((l.scale ?? 1) * 120, 90), 200)}px`,
-                    transform: `translate(-50%, -50%) rotate(${l.rotation ?? 0}deg)`,
-                    zIndex: l.zIndex ?? idx,
-                  }}
+                  src={layer.pieceData?.cutoutImageUrl}
+                  alt="Piece"
+                  className="max-w-[110px] max-h-[110px] object-contain drop-shadow-md"
                 />
-              )
-            )
+              </div>
+            ))
           )}
           
           <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[9px] font-bold text-white flex items-center gap-1">

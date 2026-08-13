@@ -160,7 +160,7 @@ export default function MixCard({ mix }: MixCardProps) {
                   Styling Advice Requested
                 </p>
                 <p className="text-[11px] text-[#64748B] dark:text-[#8E95A5]">
-                  @{mix.creatorUsername} is looking for piece swaps & makeover ideas!
+                  @{creator.username} is looking for piece swaps & makeover ideas!
                 </p>
               </div>
             </div>
