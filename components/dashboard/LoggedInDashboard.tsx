@@ -70,7 +70,13 @@ export default function LoggedInDashboard() {
 
   // User pieces count
   const myPieces = getPiecesByOwner(currentUser.username);
-  const otherUsers = users.filter(u => u.id !== currentUser.id);
+  const otherUsers = users.filter(
+    u => u.id !== currentUser.id && 
+         u.id !== 'guest' && 
+         u.username && 
+         u.username.trim() !== '' && 
+         u.username.toLowerCase() !== (currentUser.username || '').toLowerCase()
+  );
 
   // Filter mixes based on active tab and category
   const filteredMixes = mixes.filter(mix => {
