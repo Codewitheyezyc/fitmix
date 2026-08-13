@@ -59,11 +59,15 @@ export function getUserProfileSnapshot(userId: string): UserProfile | undefined 
   return usersMap.get(userId);
 }
 
-/**
- * Get fallback profile object if profile not found in store.
- */
+// Cache fallback objects to maintain referential stability for useSyncExternalStore
+const fallbackCacheMap = new Map<string, UserProfile>();
+
 export function getFallbackProfile(userId: string, usernameHint?: string): UserProfile {
-  return {
+  const cacheKey = `${userId || 'guest'}_${usernameHint || ''}`;
+  const existing = fallbackCacheMap.get(cacheKey);
+  if (existing) return existing;
+
+  const fallback: UserProfile = {
     id: userId || 'usr_unknown',
     username: usernameHint || 'stylist',
     displayName: usernameHint ? `@${usernameHint}` : 'Stylist',
@@ -76,8 +80,11 @@ export function getFallbackProfile(userId: string, usernameHint?: string): UserP
     followingCount: 0,
     isFollowing: false,
     hasCompletedOnboarding: true,
-    createdAt: new Date().toISOString()
+    createdAt: '2026-01-01T00:00:00Z'
   };
+
+  fallbackCacheMap.set(cacheKey, fallback);
+  return fallback;
 }
 
 /**
