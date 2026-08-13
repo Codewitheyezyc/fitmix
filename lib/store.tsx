@@ -37,15 +37,19 @@ import {
   cloudDeleteStory, 
   cloudToggleLikeStory,
   cloudToggleFollow,
+  cloudToggleLikeMixPersistent,
+  cloudToggleSaveMixPersistent,
   cloudAddComment,
   cloudAddDirectMessage,
   cloudUpdateDirectMessageReaction,
   cloudAddNotification,
   cloudMarkNotificationsRead,
   cloudDeleteUserAccount,
-  cloudUpdateUserProfile
+  cloudUpdateUserProfile,
+  fetchAliasByOldUsername,
+  fetchUserRemixCount
 } from './syncEngine';
-import { setUserProfile, setUsersMap } from './userStore';
+import { setUserProfile, setUsersMap, setFollowingUserIds, toggleFollowingUserId, isUserFollowing } from './userStore';
 
 
 interface StoreContextType {
@@ -275,6 +279,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
             setComments(prev => prev.some(existing => existing.id === newComment.id) ? prev : [...prev, newComment]);
           }
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'follows' }, () => {
+          syncWithCloud();
+        })
         .subscribe();
 
       // 3. Listen to live Supabase Auth state changes (Sole Source of Truth for Session Identity)
@@ -428,19 +435,52 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         });
       }
 
-      if (cloud.follows && cloud.follows.length > 0) {
-        const followingIds = new Set(cloud.follows.filter(f => f.follower_id === activeUser.id).map(f => f.following_id));
-        if (followingIds.size > 0) {
-          setUsers(prev => prev.map(u => ({ ...u, isFollowing: followingIds.has(u.id) })));
-        }
+      if (cloud.follows) {
+        const followingIds = cloud.follows
+          .filter(f => f.follower_id === activeUser.id)
+          .map(f => f.following_id);
+        setFollowingUserIds(followingIds);
+      }
+
+      if (cloud.mixes && cloud.mixes.length > 0) {
+        const likedMixIds = new Set((cloud.mixLikes || []).filter(l => l.user_id === activeUser.id).map(l => l.mix_id));
+        const savedMixIds = new Set((cloud.savedMixes || []).filter(s => s.user_id === activeUser.id).map(s => s.mix_id));
+
+        setMixes(prev => {
+          const cloudIds = new Set(cloud.mixes!.map(m => m.id));
+          const existingSeedOnly = prev.filter(m => !cloudIds.has(m.id));
+          const mergedCloud = cloud.mixes!.map(m => ({
+            ...m,
+            isLiked: likedMixIds.has(m.id),
+            isSaved: savedMixIds.has(m.id)
+          }));
+          const merged = [...mergedCloud, ...existingSeedOnly];
+          persist(STORAGE_KEYS.MIXES, merged);
+          return merged;
+        });
       }
 
       if (cloud.users && cloud.users.length > 0) {
-        setUsers(cloud.users);
-        setUsersMap(cloud.users);
-        persist(STORAGE_KEYS.USERS, cloud.users);
+        // Calculate followers/following counts dynamically from follows rows
+        const followerCountMap = new Map<string, number>();
+        const followingCountMap = new Map<string, number>();
 
-        const myCloudProfile = cloud.users.find(u => 
+        (cloud.follows || []).forEach(f => {
+          followerCountMap.set(f.following_id, (followerCountMap.get(f.following_id) || 0) + 1);
+          followingCountMap.set(f.follower_id, (followingCountMap.get(f.follower_id) || 0) + 1);
+        });
+
+        const updatedUsersWithCounts = cloud.users.map(u => ({
+          ...u,
+          followersCount: followerCountMap.get(u.id) || 0,
+          followingCount: followingCountMap.get(u.id) || 0
+        }));
+
+        setUsers(updatedUsersWithCounts);
+        setUsersMap(updatedUsersWithCounts);
+        persist(STORAGE_KEYS.USERS, updatedUsersWithCounts);
+
+        const myCloudProfile = updatedUsersWithCounts.find(u => 
           (activeUser.id && u.id === activeUser.id) || 
           (activeUser.username && u.username.toLowerCase() === activeUser.username.toLowerCase())
         );
@@ -455,6 +495,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
               avatarUrl: myCloudProfile.avatarUrl || prev.avatarUrl,
               bio: myCloudProfile.bio || prev.bio,
               location: myCloudProfile.location || prev.location,
+              followersCount: myCloudProfile.followersCount,
+              followingCount: myCloudProfile.followingCount,
               styleInterests: (myCloudProfile.styleInterests && myCloudProfile.styleInterests.length > 0) ? myCloudProfile.styleInterests : prev.styleInterests,
               hasCompletedOnboarding: myCloudProfile.hasCompletedOnboarding ?? prev.hasCompletedOnboarding ?? true
             };
@@ -770,13 +812,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleLikeMix = (mixId: string) => {
     let nextLikes = 0;
+    let nextIsLiked = false;
     const updatedMixes = mixes.map(m => {
       if (m.id === mixId) {
-        const isLiked = !m.isLiked;
-        nextLikes = isLiked ? m.likesCount + 1 : Math.max(0, m.likesCount - 1);
+        nextIsLiked = !m.isLiked;
+        nextLikes = nextIsLiked ? m.likesCount + 1 : Math.max(0, m.likesCount - 1);
         return {
           ...m,
-          isLiked,
+          isLiked: nextIsLiked,
           likesCount: nextLikes
         };
       }
@@ -784,36 +827,55 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     });
     setMixes(updatedMixes);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
-    cloudToggleLikeMix(mixId, nextLikes);
+    cloudToggleLikeMixPersistent(mixId, nextIsLiked, nextLikes);
   };
 
   const toggleSaveMix = (mixId: string) => {
+    let nextIsSaved = false;
     const updatedMixes = mixes.map(m => {
       if (m.id === mixId) {
-        return { ...m, isSaved: !m.isSaved };
+        nextIsSaved = !m.isSaved;
+        return { ...m, isSaved: nextIsSaved };
       }
       return m;
     });
     setMixes(updatedMixes);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
+    cloudToggleSaveMixPersistent(mixId, nextIsSaved);
   };
 
   const toggleFollowUser = (userId: string) => {
-    let nextStatus = true;
+    if (!userId || userId === currentUser.id) return;
+
+    const currentlyFollowing = isUserFollowing(userId);
+    const nextStatus = !currentlyFollowing;
+
+    // 1. Update followingSet and userStore subscribers atomically
+    toggleFollowingUserId(userId, nextStatus);
+
+    // 2. Update local users array
     const updatedUsers = users.map(u => {
       if (u.id === userId) {
-        const isFollowing = !u.isFollowing;
-        nextStatus = isFollowing;
         return {
           ...u,
-          isFollowing,
-          followersCount: isFollowing ? u.followersCount + 1 : Math.max(0, u.followersCount - 1)
+          isFollowing: nextStatus,
+          followersCount: nextStatus ? u.followersCount + 1 : Math.max(0, u.followersCount - 1)
         };
       }
       return u;
     });
     setUsers(updatedUsers);
     persist(STORAGE_KEYS.USERS, updatedUsers);
+
+    // 3. Update current user following count
+    setCurrentUser(prev => {
+      const updatedCount = nextStatus ? prev.followingCount + 1 : Math.max(0, prev.followingCount - 1);
+      const updated = { ...prev, followingCount: updatedCount };
+      persist(STORAGE_KEYS.USER, updated);
+      return updated;
+    });
+
+    // 4. Dispatch cloud follow toggle to Supabase
     cloudToggleFollow(currentUser.id, userId, nextStatus);
   };
 

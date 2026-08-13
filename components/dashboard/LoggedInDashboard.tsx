@@ -4,35 +4,30 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import MixCard from '@/components/feed/MixCard';
+import MixCardSkeleton from '@/components/feed/MixCardSkeleton';
+import UserAvatar from '@/components/ui/UserAvatar';
 import MixOfTheWeek from '@/components/education/MixOfTheWeek';
 import UploadPieceModal from '@/components/piece/UploadPieceModal';
-import PieceDetailModal from '@/components/piece/PieceDetailModal';
-import StoryViewerModal from '@/components/story/StoryViewerModal';
 import UploadStoryModal from '@/components/story/UploadStoryModal';
-import UserAvatar from '@/components/ui/UserAvatar';
-import MixCardSkeleton from '@/components/feed/MixCardSkeleton';
-import { Piece, UserProfile } from '@/lib/types';
+import StoryViewerModal from '@/components/story/StoryViewerModal';
+import PieceDetailModal from '@/components/piece/PieceDetailModal';
+import { Piece, Mix } from '@/lib/types';
+import { isUserFollowing } from '@/lib/userStore';
 import { 
   Sparkles, 
   TrendingUp, 
   Users, 
   Flame, 
-  Plus, 
-  Layers, 
-  ArrowRight, 
   Shirt, 
-  Compass, 
-  Repeat, 
-  UserPlus, 
-  Check,
-  Search,
-  Home,
-  Bookmark,
-  Bell,
-  User,
-  MessageCircle,
+  Plus, 
   SlidersHorizontal,
-  Tag
+  Compass,
+  Zap,
+  Repeat,
+  Check,
+  ArrowRight,
+  ExternalLink,
+  MessageCircle
 } from 'lucide-react';
 
 export default function LoggedInDashboard() {
@@ -70,13 +65,12 @@ export default function LoggedInDashboard() {
 
   // User pieces count
   const myPieces = getPiecesByOwner(currentUser.username);
-  const otherUsers = users.filter(
-    u => u.id !== currentUser.id && 
-         u.id !== 'guest' && 
-         u.username && 
-         u.username.trim() !== '' && 
-         u.username.toLowerCase() !== (currentUser.username || '').toLowerCase()
-  );
+  
+  // Dynamic Rising Stylists discovery (ordered by activity & recent post count)
+  const risingStylists = users
+    .filter(u => u.id !== currentUser.id && u.id !== 'guest' && u.username && u.username.trim() !== '')
+    .sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
+    .slice(0, 5);
 
   // Filter mixes based on active tab and category
   const filteredMixes = mixes.filter(mix => {
@@ -86,15 +80,27 @@ export default function LoggedInDashboard() {
     }
 
     if (activeTab === 'following') {
-      const followedUsernames = users.filter(u => u.isFollowing).map(u => u.username.toLowerCase());
-      return followedUsernames.includes(mix.creatorUsername.toLowerCase()) || mix.creatorId === currentUser.id;
+      return isUserFollowing(mix.creatorId) || mix.creatorId === currentUser.id;
     }
 
+    return true; // default stream
+  }).sort((a, b) => {
     if (activeTab === 'trending') {
-      return (mix.likesCount || 0) + (mix.remixCount || 0) * 2 > 10;
+      const scoreA = (a.likesCount || 0) + (a.commentsCount || 0) * 2 + (a.remixCount || 0) * 3;
+      const scoreB = (b.likesCount || 0) + (b.commentsCount || 0) * 2 + (b.remixCount || 0) * 3;
+      return scoreB - scoreA;
     }
 
-    return true; // for-you default
+    if (activeTab === 'for-you') {
+      // Prioritize mixes matching currentUser styleInterests or technique tags
+      const userInterests = new Set((currentUser.styleInterests || []).map(s => s.toLowerCase()));
+      const matchesA = a.techniqueTags?.some(t => userInterests.has(t.toLowerCase())) ? 1 : 0;
+      const matchesB = b.techniqueTags?.some(t => userInterests.has(t.toLowerCase())) ? 1 : 0;
+      if (matchesA !== matchesB) return matchesB - matchesA;
+    }
+
+    // Chronological fallback
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   return (
@@ -349,59 +355,6 @@ export default function LoggedInDashboard() {
             </Link>
           </div>
 
-          {/* Mobile Mix of the Week Spotlight (Visible only on mobile / small screens) */}
-          <div className="lg:hidden">
-            <MixOfTheWeek compact />
-          </div>
-
-          {/* Mobile Featured Stylists Carousel */}
-          <div className="lg:hidden p-4 rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-lg space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#0D0E12] dark:text-white flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
-                <span>Featured Stylists</span>
-              </h4>
-              <Link href="/discover" className="text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline">
-                Explore All →
-              </Link>
-            </div>
-            
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-              {otherUsers.map(stylist => (
-                <div 
-                  key={`mobile_stylist_${stylist.id}`}
-                  className="flex-shrink-0 w-36 p-3 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5 flex flex-col items-center text-center gap-2"
-                >
-                  <Link href={`/closet/${stylist.username}`}>
-                    <UserAvatar 
-                      src={stylist.avatarUrl} 
-                      name={stylist.displayName || stylist.username} 
-                      size="sm" 
-                    />
-                  </Link>
-                  <div className="min-w-0 w-full">
-                    <Link href={`/closet/${stylist.username}`} className="text-xs font-bold text-[#0D0E12] dark:text-white truncate block hover:underline">
-                      {stylist.displayName}
-                    </Link>
-                    <span className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate block">
-                      @{stylist.username}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => toggleFollowUser(stylist.id)}
-                    className={`w-full py-1 rounded-full text-[10px] font-bold transition-all ${
-                      stylist.isFollowing
-                        ? 'bg-transparent text-[#64748B] dark:text-[#8E95A5] border border-black/10 dark:border-white/10'
-                        : 'bg-[#E2FF66] text-[#0D0E12] shadow-xs'
-                    }`}
-                  >
-                    {stylist.isFollowing ? 'Following' : '+ Follow'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Main Feed Mix Stream */}
           <div className="space-y-6">
             {filteredMixes.length === 0 ? (
@@ -435,32 +388,29 @@ export default function LoggedInDashboard() {
           {/* Editorial Mix of the Week Spotlight */}
           <MixOfTheWeek />
 
-          {/* Suggested Stylists to Follow */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-xl transition-colors">
-            <div className="flex items-center justify-between mb-4">
+          {/* Right Sidebar: Dynamic Rising Stylists */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#0D0E12] dark:text-white flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[#7B9600] dark:text-[#E2FF66]" />
-                <span>Featured Stylists</span>
+                <span>Rising Stylists</span>
               </h4>
               <Link href="/discover" className="text-[11px] font-bold text-[#7B9600] dark:text-[#E2FF66] hover:underline">
                 Explore All
               </Link>
             </div>
 
-            <div className="space-y-3.5">
-              {otherUsers.slice(0, 4).map(stylist => (
-                <div key={stylist.id} className="flex items-center justify-between gap-3">
-                  <Link 
-                    href={`/closet/${stylist.username}`}
-                    className="flex items-center gap-2.5 min-w-0 group"
-                  >
+            <div className="space-y-3">
+              {risingStylists.map(stylist => (
+                <div key={`sidebar_stylist_${stylist.id}`} className="flex items-center justify-between gap-3">
+                  <Link href={`/closet/${stylist.username}`} className="flex items-center gap-2.5 min-w-0 group">
                     <UserAvatar 
                       src={stylist.avatarUrl} 
                       name={stylist.displayName || stylist.username} 
                       size="sm" 
                     />
                     <div className="min-w-0">
-                      <h6 className="text-xs font-bold text-[#0D0E12] dark:text-white group-hover:text-[#7B9600] dark:group-hover:text-[#E2FF66] truncate transition-colors">
+                      <h6 className="text-xs font-bold text-[#0D0E12] dark:text-white truncate group-hover:underline">
                         {stylist.displayName}
                       </h6>
                       <span className="text-[10px] text-[#64748B] dark:text-[#8E95A5] truncate block">
@@ -471,13 +421,13 @@ export default function LoggedInDashboard() {
 
                   <button
                     onClick={() => toggleFollowUser(stylist.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all flex-shrink-0 ${
+                    className={`px-3 py-1 text-[10px] font-bold rounded-full border transition-all flex-shrink-0 ${
                       stylist.isFollowing
                         ? 'bg-transparent text-[#64748B] dark:text-[#8E95A5] border-black/10 dark:border-white/10'
-                        : 'bg-[#E2FF66] text-[#0D0E12] border-transparent font-bold hover:bg-[#d5f356]'
+                        : 'bg-[#E2FF66] text-[#0D0E12] border-[#E2FF66] shadow-xs'
                     }`}
                   >
-                    {stylist.isFollowing ? 'Following' : 'Follow'}
+                    {stylist.isFollowing ? 'Following' : '+ Follow'}
                   </button>
                 </div>
               ))}

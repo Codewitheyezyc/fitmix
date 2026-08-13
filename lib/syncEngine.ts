@@ -16,6 +16,8 @@ export interface CloudSyncData {
   users: UserProfile[];
   comments: Comment[];
   directMessages: DirectMessage[];
+  mixLikes: { user_id: string; mix_id: string }[];
+  savedMixes: { user_id: string; mix_id: string }[];
 }
 
 /**
@@ -23,7 +25,7 @@ export interface CloudSyncData {
  */
 export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
   try {
-    const [piecesRes, mixesRes, storiesRes, notifsRes, followsRes, profilesRes, commentsRes, dmsRes] = await Promise.all([
+    const [piecesRes, mixesRes, storiesRes, notifsRes, followsRes, profilesRes, commentsRes, dmsRes, mixLikesRes, savedMixesRes] = await Promise.all([
       supabase.from('pieces').select('*').order('created_at', { ascending: false }),
       supabase.from('mixes').select('*').order('created_at', { ascending: false }),
       supabase.from('stories').select('*').order('created_at', { ascending: false }),
@@ -31,10 +33,15 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
       supabase.from('follows').select('*'),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('comments').select('*').order('created_at', { ascending: true }),
-      supabase.from('direct_messages').select('*').order('created_at', { ascending: true })
+      supabase.from('direct_messages').select('*').order('created_at', { ascending: true }),
+      supabase.from('mix_likes').select('*'),
+      supabase.from('saved_mixes').select('*')
     ]);
 
     const result: Partial<CloudSyncData> = {};
+
+    if (mixLikesRes.data) result.mixLikes = mixLikesRes.data;
+    if (savedMixesRes.data) result.savedMixes = savedMixesRes.data;
 
     if (piecesRes.data && piecesRes.data.length > 0) {
       result.pieces = piecesRes.data.map(p => ({
@@ -534,19 +541,64 @@ export async function cloudMarkNotificationsRead(userId: string) {
  */
 export async function cloudToggleFollow(followerId: string, followingId: string, isFollowing: boolean) {
   try {
+    const authUser = (await supabase.auth.getUser()).data.user;
+    const activeFollowerId = authUser?.id || followerId;
+    if (!activeFollowerId || !followingId || activeFollowerId === followingId) return;
+
     if (isFollowing) {
       await supabase.from('follows').upsert({
-        follower_id: followerId,
+        follower_id: activeFollowerId,
         following_id: followingId
-      });
+      }, { onConflict: 'follower_id,following_id' });
     } else {
-      await supabase.from('follows').delete().match({
-        follower_id: followerId,
-        following_id: followingId
-      });
+      await supabase.from('follows').delete().eq('follower_id', activeFollowerId).eq('following_id', followingId);
     }
   } catch (err) {
     console.warn('Cloud follow sync error:', err);
+  }
+}
+
+/**
+ * Sync mix like / unlike in Supabase mix_likes table and update mixes count
+ */
+export async function cloudToggleLikeMixPersistent(mixId: string, isLiked: boolean, newLikesCount: number) {
+  try {
+    const authUser = (await supabase.auth.getUser()).data.user;
+    if (!authUser?.id || !mixId) return;
+
+    if (isLiked) {
+      await supabase.from('mix_likes').upsert({
+        user_id: authUser.id,
+        mix_id: mixId
+      }, { onConflict: 'user_id,mix_id' });
+    } else {
+      await supabase.from('mix_likes').delete().eq('user_id', authUser.id).eq('mix_id', mixId);
+    }
+
+    await supabase.from('mixes').update({ likes_count: Math.max(0, newLikesCount) }).eq('id', mixId);
+  } catch (err) {
+    console.warn('Cloud toggle like mix error:', err);
+  }
+}
+
+/**
+ * Sync mix save / unsave in Supabase saved_mixes table
+ */
+export async function cloudToggleSaveMixPersistent(mixId: string, isSaved: boolean) {
+  try {
+    const authUser = (await supabase.auth.getUser()).data.user;
+    if (!authUser?.id || !mixId) return;
+
+    if (isSaved) {
+      await supabase.from('saved_mixes').upsert({
+        user_id: authUser.id,
+        mix_id: mixId
+      }, { onConflict: 'user_id,mix_id' });
+    } else {
+      await supabase.from('saved_mixes').delete().eq('user_id', authUser.id).eq('mix_id', mixId);
+    }
+  } catch (err) {
+    console.warn('Cloud toggle save mix error:', err);
   }
 }
 
