@@ -619,29 +619,78 @@ export async function cloudDeleteUserAccount(userId: string, username: string): 
 /**
  * Update user profile in Supabase profiles table and cascade avatar changes across existing pieces, mixes, and comments.
  */
-export async function cloudUpdateUserProfile(profile: UserProfile): Promise<boolean> {
+export async function cloudUpdateUserProfile(profile: UserProfile): Promise<{ success: boolean; error?: string }> {
   try {
     const authUser = (await supabase.auth.getUser()).data.user;
     const targetUserId = authUser?.id || (profile.id && profile.id !== 'guest' ? profile.id : null);
 
     if (targetUserId) {
-      // Check existing profile to see if handle was modified
+      // 1. Fetch existing profile to check username/display_name changes
       const { data: existingProfile } = await supabase
         .from('profiles')
-        .select('username')
+        .select('username, display_name')
         .eq('id', targetUserId)
         .maybeSingle();
 
+      // 2. Validate Username Reservation (14-day rule)
+      if (profile.username && (!existingProfile || existingProfile.username.toLowerCase() !== profile.username.toLowerCase())) {
+        const targetHandle = profile.username.trim().toLowerCase();
+        
+        // Check if handle is reserved by another user in username_aliases
+        const { data: aliasRecord } = await supabase
+          .from('username_aliases')
+          .select('user_id, expires_at')
+          .eq('old_username', targetHandle)
+          .maybeSingle();
+
+        if (aliasRecord && aliasRecord.user_id !== targetUserId) {
+          const expiresAt = aliasRecord.expires_at ? new Date(aliasRecord.expires_at) : new Date();
+          if (expiresAt > new Date()) {
+            return { 
+              success: false, 
+              error: `The handle @${targetHandle} is reserved by its previous owner until ${expiresAt.toLocaleDateString()}.` 
+            };
+          }
+        }
+      }
+
+      // 3. Validate Display Name Change Limit (Max 2 changes within rolling 14-day window)
+      if (existingProfile && profile.displayName && existingProfile.display_name !== profile.displayName) {
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: history, count } = await supabase
+          .from('display_name_history')
+          .select('id', { count: 'exact' })
+          .eq('user_id', targetUserId)
+          .gte('changed_at', fourteenDaysAgo);
+
+        if (count !== null && count >= 2) {
+          return { 
+            success: false, 
+            error: 'Display name can only be changed twice within a rolling 14-day period.' 
+          };
+        }
+
+        // Record display name edit history
+        await supabase.from('display_name_history').insert({
+          user_id: targetUserId,
+          display_name: profile.displayName,
+          changed_at: new Date().toISOString()
+        });
+      }
+
+      // 4. Record handle change into username_aliases with 14-day expiration
       if (existingProfile && existingProfile.username && existingProfile.username.toLowerCase() !== profile.username.toLowerCase()) {
-        // Record old username in username_aliases table to preserve historical URLs
+        const fourteenDaysFromNow = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
         await supabase.from('username_aliases').upsert({
           user_id: targetUserId,
           old_username: existingProfile.username.toLowerCase(),
-          created_at: new Date().toISOString()
-        }, { onConflict: 'old_username' }).select();
+          created_at: new Date().toISOString(),
+          expires_at: fourteenDaysFromNow
+        }, { onConflict: 'old_username' });
       }
 
-      await supabase.from('profiles').upsert({
+      // 5. Commit updated profile to public.profiles
+      const { error: upsertError } = await supabase.from('profiles').upsert({
         id: targetUserId,
         username: profile.username,
         display_name: profile.displayName,
@@ -652,21 +701,16 @@ export async function cloudUpdateUserProfile(profile: UserProfile): Promise<bool
         has_completed_onboarding: profile.hasCompletedOnboarding ?? true,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
-    } else if (profile.username) {
-      await supabase.from('profiles').update({
-        display_name: profile.displayName,
-        avatar_url: profile.avatarUrl || '',
-        bio: profile.bio || '',
-        location: profile.location || '',
-        style_interests: profile.styleInterests || [],
-        updated_at: new Date().toISOString()
-      }).eq('username', profile.username);
+
+      if (upsertError) {
+        return { success: false, error: upsertError.message };
+      }
     }
 
-    return true;
-  } catch (err) {
+    return { success: true };
+  } catch (err: any) {
     console.error('cloudUpdateUserProfile error:', err);
-    return false;
+    return { success: false, error: err.message || 'Failed to update profile' };
   }
 }
 

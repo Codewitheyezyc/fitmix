@@ -167,7 +167,13 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       if (savedAuth) setIsAuthenticated(JSON.parse(savedAuth));
 
       const savedUser = localStorage.getItem(STORAGE_KEYS.USER);
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+      // Only restore savedUser if it has a valid user ID (not guest)
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && parsed.id && parsed.id !== 'guest') {
+          setCurrentUser(parsed);
+        }
+      }
 
       const savedPieces = localStorage.getItem(STORAGE_KEYS.PIECES);
       if (savedPieces) setPieces(JSON.parse(savedPieces));
@@ -271,23 +277,23 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         })
         .subscribe();
 
-      // 3. Listen to live Supabase Auth state changes
+      // 3. Listen to live Supabase Auth state changes (Sole Source of Truth for Session Identity)
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           setIsAuthenticated(true);
           persist(STORAGE_KEYS.AUTH, true);
           
           try {
-            // Fetch authoritative profile from Supabase profiles table
+            // Fetch authoritative profile strictly by stable user ID (session.user.id)
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
-              .or(`id.eq.${session.user.id},username.eq.${session.user.user_metadata?.username || ''}`)
+              .eq('id', session.user.id)
               .maybeSingle();
 
             const meta = session.user.user_metadata;
             const userObj: UserProfile = profile ? {
-              id: profile.id || session.user.id,
+              id: profile.id,
               username: profile.username || meta?.username || (session.user.email ? session.user.email.split('@')[0] : 'stylist'),
               displayName: profile.display_name || meta?.full_name || meta?.display_name || 'Stylist',
               avatarUrl: profile.avatar_url || meta?.avatar_url || '',
@@ -310,11 +316,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
               totalRemixesReceived: 0,
               followersCount: 0,
               followingCount: 0,
-              hasCompletedOnboarding: true,
+              hasCompletedOnboarding: false,
               createdAt: session.user.created_at || new Date().toISOString()
             };
 
-            // If no profile exists yet in the database, insert it
+            // If no profile exists yet in the database, insert it strictly by ID
             if (!profile) {
               await supabase.from('profiles').upsert({
                 id: userObj.id,
@@ -323,16 +329,27 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
                 avatar_url: userObj.avatarUrl,
                 bio: userObj.bio,
                 style_interests: userObj.styleInterests,
-                has_completed_onboarding: true,
+                has_completed_onboarding: userObj.hasCompletedOnboarding,
                 updated_at: new Date().toISOString()
-              }, { onConflict: 'username' });
+              }, { onConflict: 'id' });
             }
 
             setCurrentUser(userObj);
+            setUserProfile(userObj);
             persist(STORAGE_KEYS.USER, userObj);
             syncWithCloud();
           } catch (err) {
             console.warn('Profile auth sync notice:', err);
+          }
+        } else if (event === 'SIGNED_OUT' || !session) {
+          // Purge session identity immediately on signout event
+          setIsAuthenticated(false);
+          setCurrentUser(CURRENT_USER);
+          if (typeof window !== 'undefined') {
+            try {
+              Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+              localStorage.removeItem('fitmix_onboarding_done');
+            } catch (_) {}
           }
         }
       });
@@ -507,8 +524,17 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.warn('Supabase signOut notice:', err);
     }
+
+    if (typeof window !== 'undefined') {
+      try {
+        Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+        localStorage.removeItem('fitmix_onboarding_done');
+        localStorage.clear();
+      } catch (_) {}
+    }
+
     setIsAuthenticated(false);
-    persist(STORAGE_KEYS.AUTH, false);
+    setCurrentUser(CURRENT_USER);
   };
 
   const deleteAccount = async (reason?: string): Promise<boolean> => {

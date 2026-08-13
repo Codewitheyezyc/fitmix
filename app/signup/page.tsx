@@ -44,18 +44,16 @@ export default function SignUpPage() {
     setErrorMessage(null);
     try {
       if (supabase) {
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: typeof window !== 'undefined' ? `${window.location.origin}` : undefined,
+            redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
           },
         });
+        if (error) setErrorMessage(error.message);
       }
-      login('google_user@fitmix.app');
-      router.push('/');
     } catch (err: any) {
-      login('google_user@fitmix.app');
-      router.push('/');
+      setErrorMessage(err.message || 'OAuth error occurred.');
     } finally {
       setIsLoading(false);
     }
@@ -74,30 +72,29 @@ export default function SignUpPage() {
 
     try {
       if (emailOrPhone.includes('@') && supabase) {
-        try {
-          await supabase.auth.signUp({
-            email: emailOrPhone,
-            password: password,
-            options: {
-              data: {
-                full_name: fullName,
-                username: username.toLowerCase().replace(/\s+/g, '_'),
-                birth_date: `${birthYear}-${birthMonth}-${birthDay}`,
-              },
+        const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined;
+        const { data, error } = await supabase.auth.signUp({
+          email: emailOrPhone,
+          password: password,
+          options: {
+            emailRedirectTo: redirectUrl,
+            data: {
+              full_name: fullName,
+              username: username.toLowerCase().replace(/\s+/g, '_'),
+              birth_date: `${birthYear}-${birthMonth}-${birthDay}`,
+              style_interests: selectedStyles
             },
-          });
-        } catch (e) {
-          console.log('Supabase sync notice:', e);
+          },
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          setIsLoading(false);
+          return;
         }
       }
 
-      signup({
-        username: username.trim().toLowerCase().replace(/\s+/g, '_'),
-        displayName: fullName.trim(),
-        styleInterests: selectedStyles,
-      });
-
-      // Route to Email Confirmation Screen as per User Journey Blueprint
+      // Route strictly to Email Confirmation Screen (Session remains unconfirmed until link click)
       router.push(`/confirm-email?email=${encodeURIComponent(emailOrPhone)}`);
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred during signup.');

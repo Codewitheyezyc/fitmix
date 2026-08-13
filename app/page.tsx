@@ -33,8 +33,9 @@ export default function HomePage() {
     );
   }
 
-  // If user is LOGGED IN, render the dedicated Logged-In User Dashboard (Screen 3)
-  if (isAuthenticated) {
+  // If user is LOGGED IN with a valid authenticated profile, render LoggedInDashboard
+  const { currentUser } = useStore();
+  if (isAuthenticated && currentUser && currentUser.id && currentUser.id !== 'guest') {
     return <LoggedInDashboard />;
   }
 
