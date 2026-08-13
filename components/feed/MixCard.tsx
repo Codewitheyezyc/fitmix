@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import PieceDetailModal from '@/components/piece/PieceDetailModal';
 import MixCommentsModal from '@/components/feed/MixCommentsModal';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 interface MixCardProps {
   mix: Mix;
@@ -64,9 +65,11 @@ export default function MixCard({ mix }: MixCardProps) {
             href={`/closet/${mix.creatorUsername}`}
             className="flex items-center gap-3 group min-w-0"
           >
-            <div className="relative w-10 h-10 rounded-full overflow-hidden border border-black/10 dark:border-white/15 group-hover:border-[#E2FF66] transition-colors flex-shrink-0">
-              <img src={mix.creatorAvatar} alt={mix.creatorName} className="w-full h-full object-cover" />
-            </div>
+            <UserAvatar 
+              src={mix.creatorAvatar} 
+              name={mix.creatorName || mix.creatorUsername} 
+              size="md" 
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 truncate">
                 <span className="font-bold text-sm text-[#0D0E12] dark:text-white group-hover:text-[#B5DB10] dark:group-hover:text-[#E2FF66] transition-colors truncate">

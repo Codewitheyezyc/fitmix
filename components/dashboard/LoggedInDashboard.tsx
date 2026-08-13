@@ -9,6 +9,7 @@ import UploadPieceModal from '@/components/piece/UploadPieceModal';
 import PieceDetailModal from '@/components/piece/PieceDetailModal';
 import StoryViewerModal from '@/components/story/StoryViewerModal';
 import UploadStoryModal from '@/components/story/UploadStoryModal';
+import UserAvatar from '@/components/ui/UserAvatar';
 import { Piece, UserProfile } from '@/lib/types';
 import { 
   Sparkles, 
@@ -104,13 +105,11 @@ export default function LoggedInDashboard() {
           <div className="p-6 rounded-3xl bg-white dark:bg-[#16181E] border border-black/10 dark:border-white/10 shadow-xl transition-colors">
             
             <div className="flex items-center gap-3.5 mb-4">
-              <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-[#E2FF66] shadow-sm">
-                <img 
-                  src={currentUser.avatarUrl} 
-                  alt={currentUser.displayName} 
-                  className="w-full h-full object-cover" 
-                />
-              </div>
+              <UserAvatar 
+                src={currentUser.avatarUrl} 
+                name={currentUser.displayName || currentUser.username} 
+                size="lg" 
+              />
               <div className="min-w-0">
                 <h3 className="font-bold text-base text-[#0D0E12] dark:text-white truncate">
                   {currentUser.displayName}
@@ -228,14 +227,22 @@ export default function LoggedInDashboard() {
                   className="relative w-16 h-16 rounded-full transition-transform group-hover:scale-105"
                 >
                   {myStoryGroup && myStoryGroup.stories.length > 0 ? (
-                    <div className="w-full h-full rounded-full p-[2.5px] bg-gradient-to-tr from-[#E2FF66] via-[#B5DB10] to-[#E2FF66] shadow-[0_0_12px_rgba(226,255,102,0.4)]">
-                      <div className="w-full h-full rounded-full overflow-hidden p-[2px] bg-white dark:bg-[#0D0E12]">
-                        <img src={currentUser.avatarUrl} alt="Your Story" className="w-full h-full object-cover rounded-full" />
-                      </div>
+                    <div className="w-full h-full rounded-full p-[2.5px] bg-gradient-to-tr from-[#E2FF66] via-[#B5DB10] to-[#E2FF66] shadow-[0_0_12px_rgba(226,255,102,0.4)] flex items-center justify-center">
+                      <UserAvatar 
+                        src={currentUser.avatarUrl} 
+                        name={currentUser.displayName || currentUser.username} 
+                        border={false}
+                        className="w-full h-full"
+                      />
                     </div>
                   ) : (
-                    <div className="w-full h-full rounded-full border-2 border-dashed border-black/20 dark:border-white/25 p-[2px]">
-                      <img src={currentUser.avatarUrl} alt="Your Story" className="w-full h-full object-cover rounded-full opacity-80" />
+                    <div className="w-full h-full rounded-full border-2 border-dashed border-black/20 dark:border-white/25 p-[2px] flex items-center justify-center">
+                      <UserAvatar 
+                        src={currentUser.avatarUrl} 
+                        name={currentUser.displayName || currentUser.username} 
+                        border={false}
+                        className="w-full h-full opacity-80"
+                      />
                     </div>
                   )}
 
@@ -253,7 +260,7 @@ export default function LoggedInDashboard() {
                   </button>
                 </div>
                 
-                <span className="text-[11px] font-semibold text-[#0D0E12] dark:text-white truncate max-w-[65px]">
+                <span className="text-[11px] font-semibold text-[#0D0E12] dark:text-[#8E95A5] group-hover:text-black dark:group-hover:text-white truncate max-w-[65px]">
                   Your Story
                 </span>
               </div>
@@ -268,10 +275,13 @@ export default function LoggedInDashboard() {
                     className="flex flex-col items-center gap-1.5 cursor-pointer flex-shrink-0 group"
                     title={`View ${group.displayName}'s story`}
                   >
-                    <div className="relative w-16 h-16 rounded-full p-[2.5px] bg-gradient-to-tr from-[#E2FF66] via-[#B5DB10] to-[#E2FF66] group-hover:scale-105 transition-transform shadow-[0_0_10px_rgba(226,255,102,0.3)]">
-                      <div className="w-full h-full rounded-full overflow-hidden p-[2px] bg-white dark:bg-[#0D0E12]">
-                        <img src={group.avatarUrl} alt={group.displayName} className="w-full h-full object-cover rounded-full" />
-                      </div>
+                    <div className="relative w-16 h-16 rounded-full p-[2.5px] bg-gradient-to-tr from-[#E2FF66] via-[#B5DB10] to-[#E2FF66] group-hover:scale-105 transition-transform shadow-[0_0_10px_rgba(226,255,102,0.3)] flex items-center justify-center">
+                      <UserAvatar 
+                        src={group.avatarUrl} 
+                        name={group.displayName || group.username} 
+                        border={false}
+                        className="w-full h-full"
+                      />
                     </div>
                     <span className="text-[11px] font-medium text-[#64748B] dark:text-[#8E95A5] group-hover:text-[#0D0E12] dark:group-hover:text-white truncate max-w-[65px]">
                       @{group.username}

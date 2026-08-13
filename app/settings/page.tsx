@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { uploadImageToStorage } from '@/lib/storageUpload';
 import DeleteAccountModal from '@/components/auth/DeleteAccountModal';
+import UserAvatar from '@/components/ui/UserAvatar';
 import { 
   User, 
   Lock, 
@@ -65,6 +66,18 @@ export default function SettingsPage() {
   const [avatarPreview, setAvatarPreview] = useState<string>(currentUser.avatarUrl);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Re-sync form state whenever currentUser hydrates from Supabase
+  useEffect(() => {
+    if (currentUser.username) {
+      setDisplayName(currentUser.displayName || '');
+      setUsername(currentUser.username || '');
+      setBio(currentUser.bio || '');
+      setLocation(currentUser.location || '');
+      setStyleInterests(currentUser.styleInterests || []);
+      setAvatarPreview(currentUser.avatarUrl || '');
+    }
+  }, [currentUser]);
 
   // Delete Account Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -265,9 +278,11 @@ export default function SettingsPage() {
               {/* Avatar Upload */}
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#F4F5F8] dark:bg-[#1F222A] border border-black/5 dark:border-white/5">
                 <div className="relative flex-shrink-0">
-                  <div className="w-18 h-18 w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-[#E2FF66] shadow-[0_0_16px_rgba(226,255,102,0.25)]">
-                    <img src={avatarPreview} alt={currentUser.displayName} className="w-full h-full object-cover" />
-                  </div>
+                  <UserAvatar 
+                    src={avatarPreview} 
+                    name={displayName || currentUser.displayName || 'Stylist'} 
+                    size="xl" 
+                  />
                   {isUploadingAvatar ? (
                     <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#E2FF66] flex items-center justify-center shadow">
                       <RefreshCw className="w-3 h-3 text-[#0D0E12] animate-spin" />
