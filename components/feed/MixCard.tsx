@@ -28,7 +28,7 @@ interface MixCardProps {
 }
 
 export default function MixCard({ mix }: MixCardProps) {
-  const { toggleLikeMix, toggleSaveMix, toggleFollowUser, users, currentUser } = useStore();
+  const { toggleLikeMix, toggleSaveMix, toggleFollowUser, pieces, currentUser } = useStore();
   const [showWhyItWorks, setShowWhyItWorks] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [showPieceDrawer, setShowPieceDrawer] = useState(true);
@@ -112,10 +112,10 @@ export default function MixCard({ mix }: MixCardProps) {
           'canvas-bg-obsidian'
         }`}>
           
-          {/* Render Layers */}
+          {/* Render Layers with Fallback Piece Resolution for Realtime events */}
           {mix.layers.map((layer, idx) => {
-            const piece = layer.pieceData;
-            if (!piece) return null;
+            const piece = layer.pieceData || pieces.find(p => p.id === layer.pieceId);
+            if (!piece || !piece.cutoutImageUrl) return null;
 
             return (
               <div
