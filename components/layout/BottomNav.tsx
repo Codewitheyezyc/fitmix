@@ -20,7 +20,7 @@ export default function BottomNav() {
     { href: '/discover', icon: Compass, label: 'Discover' },
     { href: '/remix', icon: Layers, label: 'Remix', isPrimary: true },
     { href: '/notifications', icon: Bell, label: 'Alerts', badge: unreadNotificationsCount },
-    { href: `/closet/${currentUser.username}`, icon: User, label: 'Closet' },
+    { href: `/closet/${currentUser?.username || 'stylist'}`, icon: User, label: 'Closet' },
   ];
 
   return (

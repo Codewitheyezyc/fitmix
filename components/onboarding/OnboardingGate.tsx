@@ -20,7 +20,7 @@ export default function OnboardingGate() {
   // Existing accounts or users who already completed it will have hasCompletedOnboarding === true
   if (!isAuthReady || !isAuthenticated) return null;
   if (isLocallyDismissed) return null;
-  if (currentUser.hasCompletedOnboarding !== false) return null;
+  if (!currentUser || currentUser.hasCompletedOnboarding !== false) return null;
   if (!currentUser.username || currentUser.id === 'guest') return null;
 
   return <OnboardingModal />;

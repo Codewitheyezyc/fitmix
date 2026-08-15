@@ -29,7 +29,7 @@ import Link from 'next/link';
 export default function ClosetProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const username = params.username as string;
+  const username = (params?.username as string) || '';
 
   const { 
     currentUser, 
@@ -50,12 +50,14 @@ export default function ClosetProfilePage() {
 
   // Check if handle matches active user or historical alias
   useEffect(() => {
+    if (!username) return;
+
     syncWithCloud();
     fetchUserRemixCount(username).then(count => setLiveRemixCount(count));
 
     // Handle historical alias lookup if handle is not found directly
-    const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (!foundUser && currentUser.username.toLowerCase() !== username.toLowerCase()) {
+    const foundUser = users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase());
+    if (!foundUser && currentUser?.username && currentUser.username.toLowerCase() !== username.toLowerCase()) {
       fetchAliasByOldUsername(username).then(alias => {
         if (alias) {
           const matchedUser = users.find(u => u.id === alias.userId);
