@@ -105,9 +105,7 @@ export function setUsersMap(profiles: UserProfile[]): void {
  * Get current snapshot of a user profile.
  */
 export function getUserProfileSnapshot(userId: string): UserProfile | undefined {
-  const p = usersMap.get(userId);
-  if (!p) return undefined;
-  return { ...p, isFollowing: followingUserIdsSet.has(userId) };
+  return usersMap.get(userId);
 }
 
 // Cache fallback objects to maintain referential stability for useSyncExternalStore
@@ -168,20 +166,8 @@ export function useUserProfile(userId: string, usernameHint?: string): UserProfi
         }
       };
     },
-    () => {
-      const u = usersMap.get(userId);
-      if (u) {
-        return { ...u, isFollowing: followingUserIdsSet.has(userId) };
-      }
-      return getFallbackProfile(userId, usernameHint);
-    },
-    () => {
-      const u = usersMap.get(userId);
-      if (u) {
-        return { ...u, isFollowing: followingUserIdsSet.has(userId) };
-      }
-      return getFallbackProfile(userId, usernameHint);
-    }
+    () => usersMap.get(userId) || getFallbackProfile(userId, usernameHint),
+    () => usersMap.get(userId) || getFallbackProfile(userId, usernameHint)
   );
 }
 

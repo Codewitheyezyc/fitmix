@@ -202,8 +202,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       const savedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
       if (savedComments) setComments(JSON.parse(savedComments));
 
-      // 1. One-time sync on mount (no polling - avoids app slowness)
-      syncWithCloud();
+      // 1. One-time sync on mount for authenticated users only
+      const isAuthUser = Boolean(savedAuth && JSON.parse(savedAuth) === true && savedUser && JSON.parse(savedUser)?.id && JSON.parse(savedUser)?.id !== 'guest');
+      if (isAuthUser) {
+        syncWithCloud();
+      }
 
       // 2. Realtime Supabase subscription for targeted live updates (no heavy refetch loops)
       const syncChannel = supabase
