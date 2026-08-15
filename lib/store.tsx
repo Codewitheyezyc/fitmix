@@ -26,6 +26,8 @@ import {
 } from './seedData';
 import { createMentionNotifications } from './mentionUtils';
 import { supabase } from './supabase';
+import { trackEvent } from './analytics';
+import { logError } from './logger';
 import { 
   fetchCloudData, 
   autoMigrateLocalToCloud,
@@ -690,6 +692,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setPieces(updatedPieces);
     persist(STORAGE_KEYS.PIECES, updatedPieces);
     cloudAddPiece(newPiece);
+    trackEvent('piece_uploaded', { userId: currentUser.id, pieceId: newPiece.id, category: newPiece.category });
 
     // Dispatch mention notifications if any @username in piece description
     const mentionNotifs = createMentionNotifications({
@@ -801,6 +804,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     persist(STORAGE_KEYS.PIECES, updatedPieces);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
     cloudAddMix(newMix);
+    trackEvent('mix_published', { userId: currentUser.id, mixId: newMix.id, title: newMix.title });
     [...newNotifs, ...mentionNotifs].forEach(n => cloudAddNotification(n));
 
     return newMix;
@@ -828,6 +832,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setMixes(updatedMixes);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
     cloudToggleLikeMixPersistent(mixId, nextIsLiked, nextLikes);
+    trackEvent('mix_liked', { userId: currentUser.id, mixId, isLiked: nextIsLiked });
   };
 
   const toggleSaveMix = (mixId: string) => {
@@ -842,6 +847,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setMixes(updatedMixes);
     persist(STORAGE_KEYS.MIXES, updatedMixes);
     cloudToggleSaveMixPersistent(mixId, nextIsSaved);
+    trackEvent('mix_saved', { userId: currentUser.id, mixId, isSaved: nextIsSaved });
   };
 
   const toggleFollowUser = (userId: string) => {
@@ -852,6 +858,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
     // 1. Update followingSet and userStore subscribers atomically
     toggleFollowingUserId(userId, nextStatus);
+    trackEvent('user_followed', { userId: currentUser.id, targetUserId: userId, isFollowing: nextStatus });
 
     // 2. Update local users array
     const updatedUsers = users.map(u => {
