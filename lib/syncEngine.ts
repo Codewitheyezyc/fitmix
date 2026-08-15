@@ -195,16 +195,19 @@ export async function autoMigrateLocalToCloud(
 ) {
   try {
     // 1. Identify user-created custom pieces
+    const currentUsername = (currentUser?.username || '').toLowerCase();
+    const currentUserId = currentUser?.id || '';
+
     const userPieces = localPieces.filter(
-      p => p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase() ||
-           p.ownerId === currentUser.id ||
-           p.id.startsWith('pc_')
+      p => (p.ownerUsername && currentUsername && p.ownerUsername.toLowerCase() === currentUsername) ||
+           (p.ownerId && currentUserId && p.ownerId === currentUserId) ||
+           (p.id && p.id.startsWith('pc_'))
     );
 
     if (userPieces.length > 0) {
       for (const piece of userPieces) {
         let finalCutoutUrl = piece.cutoutImageUrl;
-        if (finalCutoutUrl.startsWith('data:')) {
+        if (finalCutoutUrl && finalCutoutUrl.startsWith('data:')) {
           try {
             finalCutoutUrl = await uploadImageToStorage(finalCutoutUrl, 'pieces', `piece_${piece.id}`);
           } catch (_) {
@@ -214,10 +217,10 @@ export async function autoMigrateLocalToCloud(
 
         await supabase.from('pieces').upsert({
           id: piece.id,
-          owner_id: currentUser.id || piece.ownerId,
-          owner_username: currentUser.username || piece.ownerUsername,
-          owner_name: currentUser.displayName || piece.ownerName,
-          owner_avatar: currentUser.avatarUrl || piece.ownerAvatar,
+          owner_id: currentUserId || piece.ownerId,
+          owner_username: currentUser?.username || piece.ownerUsername || 'stylist',
+          owner_name: currentUser?.displayName || piece.ownerName || 'Stylist',
+          owner_avatar: currentUser?.avatarUrl || piece.ownerAvatar || '',
           title: piece.title,
           category: piece.category,
           cutout_image_url: finalCutoutUrl,
@@ -235,19 +238,19 @@ export async function autoMigrateLocalToCloud(
 
     // 2. Identify user-created custom mixes
     const userMixes = localMixes.filter(
-      m => m.creatorUsername.toLowerCase() === currentUser.username.toLowerCase() ||
-           m.creatorId === currentUser.id ||
-           m.id.startsWith('mix_')
+      m => (m.creatorUsername && currentUsername && m.creatorUsername.toLowerCase() === currentUsername) ||
+           (m.creatorId && currentUserId && m.creatorId === currentUserId) ||
+           (m.id && m.id.startsWith('mix_'))
     );
 
     if (userMixes.length > 0) {
       for (const mix of userMixes) {
         await supabase.from('mixes').upsert({
           id: mix.id,
-          creator_id: currentUser.id || mix.creatorId,
-          creator_username: currentUser.username || mix.creatorUsername,
-          creator_name: currentUser.displayName || mix.creatorName,
-          creator_avatar: currentUser.avatarUrl || mix.creatorAvatar,
+          creator_id: currentUserId || mix.creatorId,
+          creator_username: currentUser?.username || mix.creatorUsername || 'creator',
+          creator_name: currentUser?.displayName || mix.creatorName || 'Creator',
+          creator_avatar: currentUser?.avatarUrl || mix.creatorAvatar || '',
           title: mix.title,
           description: mix.description,
           rendered_image_url: mix.renderedImageUrl,
@@ -268,9 +271,9 @@ export async function autoMigrateLocalToCloud(
 
     // 3. Identify user-created custom stories
     const userStories = localStories.filter(
-      s => s.username.toLowerCase() === currentUser.username.toLowerCase() ||
-           s.userId === currentUser.id ||
-           s.id.startsWith('story_')
+      s => (s.username && currentUsername && s.username.toLowerCase() === currentUsername) ||
+           (s.userId && currentUserId && s.userId === currentUserId) ||
+           (s.id && s.id.startsWith('story_'))
     );
 
     if (userStories.length > 0) {

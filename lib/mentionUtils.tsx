@@ -72,10 +72,11 @@ export function createMentionNotifications({
   const notifications: NotificationItem[] = [];
 
   mentionedUsernames.forEach(username => {
+    if (!username) return;
     // Avoid notifying self
-    if (username.toLowerCase() === sender.username.toLowerCase()) return;
+    if (sender?.username && username.toLowerCase() === sender.username.toLowerCase()) return;
 
-    const targetUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    const targetUser = users.find(u => u && u.username && u.username.toLowerCase() === username.toLowerCase());
     if (targetUser) {
       let message = `@${sender.username} mentioned you in their look!`;
       if (contextType === 'piece') {

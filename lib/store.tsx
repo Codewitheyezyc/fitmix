@@ -721,7 +721,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getPieceById = (id: string) => pieces.find(p => p.id === id);
-  const getPiecesByOwner = (username: string) => pieces.filter(p => p.ownerUsername.toLowerCase() === username.toLowerCase());
+  const getPiecesByOwner = (username: string) => pieces.filter(p => (p.ownerUsername || '').toLowerCase() === (username || '').toLowerCase());
   const getPiecesByCategory = (category: CategoryType) => pieces.filter(p => p.category === category);
 
   // Create Mix
@@ -811,8 +811,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getMixById = (id: string) => mixes.find(m => m.id === id);
-  const getMixesByPiece = (pieceId: string) => mixes.filter(m => m.layers.some(l => l.pieceId === pieceId));
-  const getMixesByCreator = (username: string) => mixes.filter(m => m.creatorUsername.toLowerCase() === username.toLowerCase());
+  const getMixesByPiece = (pieceId: string) => mixes.filter(m => Array.isArray(m.layers) && m.layers.some(l => l.pieceId === pieceId));
+  const getMixesByCreator = (username: string) => mixes.filter(m => (m.creatorUsername || '').toLowerCase() === (username || '').toLowerCase());
 
   const toggleLikeMix = (mixId: string) => {
     let nextLikes = 0;

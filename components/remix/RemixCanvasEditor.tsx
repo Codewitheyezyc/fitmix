@@ -377,11 +377,11 @@ export default function RemixCanvasEditor() {
 
   // Follow to Unlock Gate for Guests
   const handleFollowToUnlock = (piece: Piece) => {
-    const targetUser = users.find(u => u.username.toLowerCase() === piece.ownerUsername.toLowerCase());
+    const targetUser = users.find(u => u && u.username && piece?.ownerUsername && u.username.toLowerCase() === piece.ownerUsername.toLowerCase());
     if (!isAuthenticated) {
       setAuthModalConfig({
-        title: `✨ Unlock @${piece.ownerUsername}'s Wardrobe`,
-        subtitle: `Create your free stylist profile in 5 seconds to remix @${piece.ownerUsername}'s clothes, unlock community pieces, and build your digital closet.`,
+        title: `✨ Unlock @${piece.ownerUsername || 'Stylist'}'s Wardrobe`,
+        subtitle: `Create your free stylist profile in 5 seconds to remix @${piece.ownerUsername || 'Stylist'}'s clothes, unlock community pieces, and build your digital closet.`,
         onSuccess: () => {
           if (targetUser) toggleFollowUser(targetUser.id);
           addPieceToCanvas(piece);
@@ -446,18 +446,21 @@ export default function RemixCanvasEditor() {
   };
 
   // Followed User IDs list for filtering
-  const followedUserIds = users.filter(u => u.isFollowing).map(u => u.username.toLowerCase());
+  const followedUserIds = users.filter(u => u && u.isFollowing && u.username).map(u => u.username.toLowerCase());
 
   // Filtered pieces for the picker drawer
   const filteredPieces = pieces.filter(p => {
     const matchesCategory = pickerCategory === 'all' || p.category === pickerCategory;
     if (!matchesCategory) return false;
 
+    const ownerUn = (p.ownerUsername || '').toLowerCase();
+    const myUn = (currentUser?.username || '').toLowerCase();
+
     if (pickerTab === 'closet') {
-      return p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
+      return Boolean(ownerUn && myUn && ownerUn === myUn);
     }
     if (pickerTab === 'followed') {
-      return followedUserIds.includes(p.ownerUsername.toLowerCase()) || p.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
+      return Boolean((ownerUn && followedUserIds.includes(ownerUn)) || (ownerUn && myUn && ownerUn === myUn));
     }
     return true; // explore all
   });
@@ -945,8 +948,10 @@ export default function RemixCanvasEditor() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {filteredPieces.map(piece => {
-                    const isMine = piece.ownerUsername.toLowerCase() === currentUser.username.toLowerCase();
-                    const isFollowed = followedUserIds.includes(piece.ownerUsername.toLowerCase());
+                    const ownerUn = (piece?.ownerUsername || '').toLowerCase();
+                    const myUn = (currentUser?.username || '').toLowerCase();
+                    const isMine = Boolean(ownerUn && myUn && ownerUn === myUn);
+                    const isFollowed = Boolean(ownerUn && followedUserIds.includes(ownerUn));
 
                     return (
                       <div
