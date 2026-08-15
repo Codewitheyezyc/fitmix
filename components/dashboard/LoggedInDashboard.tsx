@@ -52,23 +52,24 @@ export default function LoggedInDashboard() {
 
   // Active Story Groups (auto-filtered for 24h expiration)
   const storyGroups = getUserStoryGroups();
+  const currentUsername = (currentUser?.username || '').toLowerCase();
+  const currentUserId = currentUser?.id || '';
+
   const myStoryGroup = storyGroups.find(
-    g => g.userId === currentUser.id || 
-         g.username.toLowerCase() === currentUser.username.toLowerCase() ||
-         (currentUser.username.toLowerCase() === 'alex_creator' && g.userId === 'usr_me')
+    g => (g.userId && g.userId === currentUserId) || 
+         (g.username && currentUsername && g.username.toLowerCase() === currentUsername)
   );
   const otherStoryGroups = storyGroups.filter(
-    g => g.userId !== currentUser.id && 
-         g.username.toLowerCase() !== currentUser.username.toLowerCase() &&
-         !(currentUser.username.toLowerCase() === 'alex_creator' && g.userId === 'usr_me')
+    g => (!g.userId || g.userId !== currentUserId) && 
+         (!g.username || !currentUsername || g.username.toLowerCase() !== currentUsername)
   );
 
   // User pieces count
-  const myPieces = getPiecesByOwner(currentUser.username);
+  const myPieces = getPiecesByOwner(currentUser?.username || '');
   
   // Dynamic Rising Stylists discovery (ordered by activity & recent post count)
   const risingStylists = users
-    .filter(u => u.id !== currentUser.id && u.id !== 'guest' && u.username && u.username.trim() !== '')
+    .filter(u => u && u.id && u.id !== currentUserId && u.id !== 'guest' && u.username && u.username.trim() !== '')
     .sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
     .slice(0, 5);
 
@@ -80,7 +81,7 @@ export default function LoggedInDashboard() {
     }
 
     if (activeTab === 'following') {
-      return isUserFollowing(mix.creatorId) || mix.creatorId === currentUser.id;
+      return isUserFollowing(mix.creatorId) || mix.creatorId === currentUserId;
     }
 
     return true; // default stream
@@ -93,9 +94,9 @@ export default function LoggedInDashboard() {
 
     if (activeTab === 'for-you') {
       // Prioritize mixes matching currentUser styleInterests or technique tags
-      const userInterests = new Set((currentUser.styleInterests || []).map(s => s.toLowerCase()));
-      const matchesA = a.techniqueTags?.some(t => userInterests.has(t.toLowerCase())) ? 1 : 0;
-      const matchesB = b.techniqueTags?.some(t => userInterests.has(t.toLowerCase())) ? 1 : 0;
+      const userInterests = new Set((currentUser?.styleInterests || []).map(s => (s || '').toLowerCase()));
+      const matchesA = a.techniqueTags?.some(t => t && userInterests.has(t.toLowerCase())) ? 1 : 0;
+      const matchesB = b.techniqueTags?.some(t => t && userInterests.has(t.toLowerCase())) ? 1 : 0;
       if (matchesA !== matchesB) return matchesB - matchesA;
     }
 

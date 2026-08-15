@@ -47,7 +47,7 @@ export default function MixCard({ mix }: MixCardProps) {
   };
 
   const creator = useUserProfile(mix.creatorId, mix.creatorUsername);
-  const isOwner = currentUser.id === mix.creatorId;
+  const isOwner = Boolean(currentUser?.id && mix?.creatorId && currentUser.id === mix.creatorId);
 
   return (
     <>
