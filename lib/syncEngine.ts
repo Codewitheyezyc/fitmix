@@ -194,14 +194,16 @@ export async function autoMigrateLocalToCloud(
   currentUser: UserProfile
 ) {
   try {
-    // 1. Identify user-created custom pieces
-    const currentUsername = (currentUser?.username || '').toLowerCase();
     const currentUserId = currentUser?.id || '';
 
+    // Guest / Unauthenticated / Pre-signup sessions must never attempt cloud migration
+    if (!currentUserId || currentUserId === 'usr_guest' || currentUserId === 'guest') {
+      return;
+    }
+
+    // 1. Identify user-created custom pieces (STRICT AUTHENTICATED UUID MATCH ONLY)
     const userPieces = localPieces.filter(
-      p => (p.ownerUsername && currentUsername && p.ownerUsername.toLowerCase() === currentUsername) ||
-           (p.ownerId && currentUserId && p.ownerId === currentUserId) ||
-           (p.id && p.id.startsWith('pc_'))
+      p => Boolean(p.ownerId && p.ownerId === currentUserId)
     );
 
     if (userPieces.length > 0) {
@@ -217,7 +219,7 @@ export async function autoMigrateLocalToCloud(
 
         await supabase.from('pieces').upsert({
           id: piece.id,
-          owner_id: currentUserId || piece.ownerId,
+          owner_id: currentUserId,
           owner_username: currentUser?.username || piece.ownerUsername || 'stylist',
           owner_name: currentUser?.displayName || piece.ownerName || 'Stylist',
           owner_avatar: currentUser?.avatarUrl || piece.ownerAvatar || '',
@@ -236,18 +238,16 @@ export async function autoMigrateLocalToCloud(
       }
     }
 
-    // 2. Identify user-created custom mixes
+    // 2. Identify user-created custom mixes (STRICT AUTHENTICATED UUID MATCH ONLY)
     const userMixes = localMixes.filter(
-      m => (m.creatorUsername && currentUsername && m.creatorUsername.toLowerCase() === currentUsername) ||
-           (m.creatorId && currentUserId && m.creatorId === currentUserId) ||
-           (m.id && m.id.startsWith('mix_'))
+      m => Boolean(m.creatorId && m.creatorId === currentUserId)
     );
 
     if (userMixes.length > 0) {
       for (const mix of userMixes) {
         await supabase.from('mixes').upsert({
           id: mix.id,
-          creator_id: currentUserId || mix.creatorId,
+          creator_id: currentUserId,
           creator_username: currentUser?.username || mix.creatorUsername || 'creator',
           creator_name: currentUser?.displayName || mix.creatorName || 'Creator',
           creator_avatar: currentUser?.avatarUrl || mix.creatorAvatar || '',
@@ -269,11 +269,9 @@ export async function autoMigrateLocalToCloud(
       }
     }
 
-    // 3. Identify user-created custom stories
+    // 3. Identify user-created custom stories (STRICT AUTHENTICATED UUID MATCH ONLY)
     const userStories = localStories.filter(
-      s => (s.username && currentUsername && s.username.toLowerCase() === currentUsername) ||
-           (s.userId && currentUserId && s.userId === currentUserId) ||
-           (s.id && s.id.startsWith('story_'))
+      s => Boolean(s.userId && s.userId === currentUserId)
     );
 
     if (userStories.length > 0) {

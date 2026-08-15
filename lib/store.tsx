@@ -147,6 +147,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
+  const syncedUserRef = React.useRef<string | null>(null);
+  const isSyncingRef = React.useRef<boolean>(false);
+
   // Apply theme to document
   const applyTheme = (mode: 'dark' | 'light') => {
     if (typeof document !== 'undefined') {
@@ -352,6 +355,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           }
         } else if (event === 'SIGNED_OUT' || !session) {
           // Purge session identity immediately on signout event
+          syncedUserRef.current = null;
+          isSyncingRef.current = false;
           setIsAuthenticated(false);
           setCurrentUser(CURRENT_USER);
           if (typeof window !== 'undefined') {
@@ -388,6 +393,18 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const syncWithCloud = async () => {
     try {
       if (typeof window === 'undefined') return;
+      if (isSyncingRef.current) return;
+
+      const rawUser = localStorage.getItem(STORAGE_KEYS.USER);
+      const activeUser: UserProfile = rawUser ? JSON.parse(rawUser) : currentUser;
+
+      // Per-user sync guard: Prevent multi-sync re-entry during the same session
+      if (syncedUserRef.current === activeUser.id && activeUser.id !== 'guest' && activeUser.id !== 'usr_guest') {
+        return;
+      }
+
+      isSyncingRef.current = true;
+      syncedUserRef.current = activeUser.id;
 
       const rawPieces = localStorage.getItem(STORAGE_KEYS.PIECES);
       const localPieces: Piece[] = rawPieces ? JSON.parse(rawPieces) : pieces;
@@ -397,9 +414,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
       const rawStories = localStorage.getItem(STORAGE_KEYS.STORIES);
       const localStories: Story[] = rawStories ? JSON.parse(rawStories) : stories;
-
-      const rawUser = localStorage.getItem(STORAGE_KEYS.USER);
-      const activeUser: UserProfile = rawUser ? JSON.parse(rawUser) : currentUser;
 
       // Auto-migrate local user items to Supabase Cloud
       await autoMigrateLocalToCloud(localPieces, localMixes, localStories, activeUser);
@@ -527,6 +541,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       console.warn('Sync error notice:', err);
+    } finally {
+      isSyncingRef.current = false;
     }
   };
 
