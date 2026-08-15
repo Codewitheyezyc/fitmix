@@ -484,7 +484,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
         const myCloudProfile = updatedUsersWithCounts.find(u => 
           (activeUser.id && u.id === activeUser.id) || 
-          (activeUser.username && u.username.toLowerCase() === activeUser.username.toLowerCase())
+          (activeUser.username && u.username && u.username.toLowerCase() === activeUser.username.toLowerCase())
         );
 
         if (myCloudProfile && activeUser.id !== 'guest') {
@@ -1068,27 +1068,30 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   const getUserStoryGroups = (): UserStoryGroup[] => {
     // Auto-discard stories older than 24 hours
-    const active = stories.filter(s => new Date(s.expiresAt).getTime() > Date.now());
+    const active = stories.filter(s => s && s.expiresAt && !isNaN(new Date(s.expiresAt).getTime()) && new Date(s.expiresAt).getTime() > Date.now());
     const groupsMap = new Map<string, UserStoryGroup>();
 
     active.forEach(story => {
-      if (!groupsMap.has(story.userId)) {
-        groupsMap.set(story.userId, {
-          userId: story.userId,
-          username: story.username,
-          displayName: story.displayName,
-          avatarUrl: story.avatarUrl,
-          hasUnseen: true,
-          stories: []
-        });
+      if (story && story.userId) {
+        if (!groupsMap.has(story.userId)) {
+          groupsMap.set(story.userId, {
+            userId: story.userId,
+            username: story.username || 'stylist',
+            displayName: story.displayName || story.username || 'Stylist',
+            avatarUrl: story.avatarUrl || '',
+            hasUnseen: true,
+            stories: []
+          });
+        }
+        groupsMap.get(story.userId)!.stories.push(story);
       }
-      groupsMap.get(story.userId)!.stories.push(story);
     });
 
     const result: UserStoryGroup[] = [];
-    if (groupsMap.has(currentUser.id)) {
-      result.push(groupsMap.get(currentUser.id)!);
-      groupsMap.delete(currentUser.id);
+    const currentUserId = currentUser?.id || '';
+    if (currentUserId && groupsMap.has(currentUserId)) {
+      result.push(groupsMap.get(currentUserId)!);
+      groupsMap.delete(currentUserId);
     }
     groupsMap.forEach(group => result.push(group));
     return result;

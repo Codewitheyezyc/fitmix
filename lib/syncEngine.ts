@@ -65,40 +65,49 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
     }
 
     if (mixesRes.data && mixesRes.data.length > 0) {
-      result.mixes = mixesRes.data.map(m => ({
-        id: m.id,
-        creatorId: m.creator_id,
-        creatorUsername: m.creator_username || 'creator',
-        creatorName: m.creator_name || 'Creator',
-        creatorAvatar: m.creator_avatar || '',
-        title: m.title,
-        description: m.description,
-        renderedImageUrl: m.rendered_image_url,
-        canvasBackground: m.canvas_background,
-        layers: m.layers_json || [],
-        techniqueTags: m.technique_tags || ['Streetwear x Formal'],
-        whyItWorks: m.why_it_works,
-        likesCount: m.likes_count || 0,
-        commentsCount: m.comments_count || 0,
-        remixCount: m.remix_count || 0,
-        createdAt: m.created_at,
-        remixChainParentId: m.remix_chain_parent_id,
-        parentMixTitle: m.parent_mix_title,
-        parentMixCreatorUsername: m.parent_mix_creator_username
-      }));
+      result.mixes = mixesRes.data.map(m => {
+        let layersArr: any[] = [];
+        if (Array.isArray(m.layers_json)) {
+          layersArr = m.layers_json;
+        } else if (typeof m.layers_json === 'string') {
+          try { layersArr = JSON.parse(m.layers_json); } catch (_) { layersArr = []; }
+        }
+
+        return {
+          id: m.id,
+          creatorId: m.creator_id || '',
+          creatorUsername: m.creator_username || 'creator',
+          creatorName: m.creator_name || m.creator_username || 'Creator',
+          creatorAvatar: m.creator_avatar || '',
+          title: m.title || 'Untitled Mix',
+          description: m.description || '',
+          renderedImageUrl: m.rendered_image_url || '',
+          canvasBackground: m.canvas_background || 'obsidian',
+          layers: Array.isArray(layersArr) ? layersArr : [],
+          techniqueTags: Array.isArray(m.technique_tags) ? m.technique_tags : ['Streetwear x Formal'],
+          whyItWorks: m.why_it_works || '',
+          likesCount: m.likes_count || 0,
+          commentsCount: m.comments_count || 0,
+          remixCount: m.remix_count || 0,
+          createdAt: m.created_at || new Date().toISOString(),
+          remixChainParentId: m.remix_chain_parent_id || undefined,
+          parentMixTitle: m.parent_mix_title || undefined,
+          parentMixCreatorUsername: m.parent_mix_creator_username || undefined
+        };
+      });
     }
 
     if (storiesRes.data && storiesRes.data.length > 0) {
       result.stories = storiesRes.data.map(s => ({
         id: s.id,
-        userId: s.user_id,
-        username: s.username,
+        userId: s.user_id || '',
+        username: s.username || 'stylist',
         displayName: s.user_name || s.username || 'Stylist',
         avatarUrl: s.user_avatar || '',
-        imageUrl: s.media_url,
+        imageUrl: s.media_url || '',
         caption: s.caption || '',
-        createdAt: s.created_at,
-        expiresAt: new Date(new Date(s.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: s.created_at || new Date().toISOString(),
+        expiresAt: new Date(new Date(s.created_at || Date.now()).getTime() + 24 * 60 * 60 * 1000).toISOString(),
         likesCount: s.likes_count || 0
       }));
     }
@@ -110,12 +119,12 @@ export async function fetchCloudData(): Promise<Partial<CloudSyncData>> {
     if (profilesRes.data && profilesRes.data.length > 0) {
       result.users = profilesRes.data.map(p => ({
         id: p.id,
-        username: p.username,
-        displayName: p.display_name,
+        username: p.username || 'stylist',
+        displayName: p.display_name || p.username || 'Stylist',
         avatarUrl: p.avatar_url || '',
         bio: p.bio || 'Fashion lover & outfit mixer.',
         location: p.location || '',
-        styleInterests: p.style_interests || ['Streetwear', 'Vintage'],
+        styleInterests: Array.isArray(p.style_interests) && p.style_interests.length > 0 ? p.style_interests : ['Streetwear', 'Vintage'],
         totalRemixesReceived: 0,
         followersCount: 0,
         followingCount: 0,
